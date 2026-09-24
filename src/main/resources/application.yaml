@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: servvista
+  datasource:
+    url: jdbc:mysql://localhost:3306/${DB_NAME:servvista_new}?useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:1998Chamod@}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+  flyway:
+    enabled: true
+    ignore-migration-patterns: "*:missing"
+  docker:
+    compose:
+      enabled: false
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+security:
+  jwt:
+    # Override JWT_SECRET outside local development. Must contain at least 32 characters.
+    secret: ${JWT_SECRET:servvista-local-development-jwt-secret-change-me}
+    issuer: ${JWT_ISSUER:servvista-api}
+    access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:3600}
+    refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:2592000}
