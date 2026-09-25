@@ -13,7 +13,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 
-@Service @Transactional
+@Service
+@Transactional
 public class RepService {
     private final RepRepository repository;
     public RepService(RepRepository repository) { this.repository = repository; }
