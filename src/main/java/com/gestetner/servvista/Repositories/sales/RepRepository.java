@@ -9,4 +9,6 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface RepRepository extends JpaRepository<Rep, Long> {
+    boolean existsByRepCodeIgnoreCase(String repCode);
+    boolean existsByRepCodeIgnoreCaseAndRepIdNot(String repCode, Long repId);
 }

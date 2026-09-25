@@ -3,11 +3,14 @@ package com.gestetner.servvista.Mapper;
 import com.gestetner.servvista.Dto.customers.CreateCustomerRequest;
 import com.gestetner.servvista.Dto.customers.CustomerResponse;
 import com.gestetner.servvista.Dto.customers.UpdateCustomerRequest;
+import com.gestetner.servvista.Dto.customers.CustomerSalesmanAssignmentResponse;
+import com.gestetner.servvista.Models.Enums.Organization.Company;
 import com.gestetner.servvista.Models.entity.customers.Customer;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.Locale;
+import java.util.List;
 
 @Component
 public class CustomerMapper {
@@ -47,6 +50,13 @@ public class CustomerMapper {
     }
 
     public CustomerResponse toResponse(Customer customer) {
+        return toResponse(customer, List.of(), null);
+    }
+
+    public CustomerResponse toResponse(
+            Customer customer,
+            List<Company> companies,
+            CustomerSalesmanAssignmentResponse salesmanAssignment) {
         return new CustomerResponse(
                 customer.getCustomerId(),
                 customer.getSageCode(),
@@ -63,7 +73,9 @@ public class CustomerMapper {
                 customer.getCreatedAt(),
                 customer.getCreatedBy(),
                 customer.getUpdatedAt(),
-                customer.getUpdatedBy());
+                customer.getUpdatedBy(),
+                List.copyOf(companies),
+                salesmanAssignment);
     }
 
     public String normalizeCode(String value) {

@@ -9,4 +9,6 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface ManufacturerRepository extends JpaRepository<Manufacturer, Long> {
+    boolean existsByManufacturerNameIgnoreCase(String manufacturerName);
+    boolean existsByManufacturerNameIgnoreCaseAndManufacturerIdNot(String manufacturerName, Long manufacturerId);
 }

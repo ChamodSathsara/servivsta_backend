@@ -9,4 +9,6 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface MachineTypeRepository extends JpaRepository<MachineType, Long> {
+    boolean existsByMachineTypeNameIgnoreCase(String machineTypeName);
+    boolean existsByMachineTypeNameIgnoreCaseAndMachineTypeIdNot(String machineTypeName, Long machineTypeId);
 }
