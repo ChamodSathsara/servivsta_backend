@@ -10,4 +10,9 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface CustomerSiteRepository extends JpaRepository<CustomerSite, Long> {
+
+    boolean existsByCustomerIdAndSiteNameIgnoreCase(Long customerId, String siteName);
+
+    boolean existsByCustomerIdAndSiteNameIgnoreCaseAndCustomerSiteIdNot(
+            Long customerId, String siteName, Long customerSiteId);
 }

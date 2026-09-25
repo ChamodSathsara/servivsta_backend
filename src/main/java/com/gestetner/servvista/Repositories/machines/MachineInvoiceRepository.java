@@ -10,4 +10,9 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface MachineInvoiceRepository extends JpaRepository<MachineInvoice, Long> {
+
+    boolean existsByInvoiceNumberIgnoreCase(String invoiceNumber);
+
+    boolean existsByInvoiceNumberIgnoreCaseAndMachineInvoiceIdNot(
+            String invoiceNumber, Long machineInvoiceId);
 }

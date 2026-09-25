@@ -1,0 +1,59 @@
+package com.gestetner.servvista.Dto.machines;
+
+import com.gestetner.servvista.Models.Enums.Machines.MachineStatus;
+import com.gestetner.servvista.Models.Enums.Organization.Area;
+import com.gestetner.servvista.Models.Enums.Organization.Company;
+import com.gestetner.servvista.Models.Enums.Organization.Division;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+public record MachineResponse(
+        Long machineId,
+        String machineReferenceNumber,
+        String serialNumber,
+        Company company,
+        Division division,
+        Long modelId,
+        String modelNumber,
+        String modelName,
+        MachineStatus currentStatus,
+        Long currentMainTechnicianId,
+        Long currentServiceTechnicianId,
+        Long dealerId,
+        Long repId,
+        Long salesmanId,
+        LocalDate originalInstallDate,
+        String machineNote,
+        String creditNoteNumber,
+        Long customerSiteId,
+        Long customerId,
+        String siteName,
+        String addressLine1,
+        String addressLine2,
+        String addressLine3,
+        Area area,
+        Long cityId,
+        BigDecimal latitude,
+        BigDecimal longitude,
+        Boolean isHeadOffice,
+        Boolean siteActive,
+        Long siteContactId,
+        String contactName,
+        String mobileNumber,
+        String email,
+        String designation,
+        Boolean isPrimaryContact,
+        Boolean contactActive,
+        Long machineInvoiceId,
+        String invoiceNumber,
+        String belitaInvoiceNumber,
+        LocalDate invoiceDate,
+        String invoiceNote,
+        Long createdBy,
+        LocalDateTime createdAt,
+        Long updatedBy,
+        LocalDateTime updatedAt
+) {
+}
