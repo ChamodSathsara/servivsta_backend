@@ -2,10 +2,14 @@ package com.gestetner.servvista.Controllers;
 
 import com.gestetner.servvista.Dto.machines.MachineRequest;
 import com.gestetner.servvista.Dto.machines.MachineResponse;
+import com.gestetner.servvista.Dto.portal.MachinePortalRegistrationRequest;
+import com.gestetner.servvista.Dto.portal.MachinePortalRegistrationResponse;
 import com.gestetner.servvista.Service.MachineService;
+import com.gestetner.servvista.Service.MachinePortalAuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,9 +32,13 @@ import java.util.List;
 public class MachineController {
 
     private final MachineService machineService;
+    private final MachinePortalAuthService portalAuthService;
 
-    public MachineController(MachineService machineService) {
+    public MachineController(
+            MachineService machineService,
+            MachinePortalAuthService portalAuthService) {
         this.machineService = machineService;
+        this.portalAuthService = portalAuthService;
     }
 
     @PostMapping
@@ -71,5 +79,15 @@ public class MachineController {
     public ResponseEntity<Void> delete(@PathVariable Long machineId) {
         machineService.delete(machineId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{machineId}/portal-registration")
+    @Operation(summary = "Register a machine for customer-portal access and issue an OTP")
+    public ResponseEntity<MachinePortalRegistrationResponse> registerPortalAccess(
+            @PathVariable Long machineId,
+            @Valid @RequestBody MachinePortalRegistrationRequest request,
+            HttpServletRequest httpRequest) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                portalAuthService.register(machineId, request, httpRequest.getRemoteAddr()));
     }
 }

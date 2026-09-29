@@ -61,6 +61,30 @@ public class JwtService {
         return new GeneratedToken(token, expiresAt);
     }
 
+    public GeneratedToken generatePortalMachineAccessToken(
+            Long portalAccountId,
+            Long machineId,
+            String email) {
+        Instant issuedAt = clock.instant();
+        Instant expiresAt = issuedAt.plusSeconds(accessTokenExpirationSeconds);
+
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer(issuer)
+                .issuedAt(issuedAt)
+                .expiresAt(expiresAt)
+                .id(UUID.randomUUID().toString())
+                .subject(email)
+                .claim("portalAccountId", portalAccountId)
+                .claim("machineId", machineId)
+                .claim("email", email)
+                .claim("role", "MACHINE")
+                .claim("roles", List.of("ROLE_MACHINE"))
+                .build();
+
+        String token = jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
+        return new GeneratedToken(token, expiresAt);
+    }
+
     public record GeneratedToken(String value, Instant expiresAt) {
     }
 }

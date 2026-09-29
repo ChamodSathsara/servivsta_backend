@@ -34,6 +34,8 @@ public class SecurityConfig {
     private static final String[] PUBLIC_ROUTES = {
             "/api/auth/login",
             "/api/auth/refresh",
+            "/api/portal-auth/verify-otp",
+            "/api/portal-auth/refresh",
             "/swagger-ui.html",
             "/swagger-ui/**",
             "/v3/api-docs/**"
