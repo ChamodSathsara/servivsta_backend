@@ -4,9 +4,15 @@ import com.gestetner.servvista.Models.entity.breakdowns.BreakdownTechnicianAssig
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 /**
  * Spring Data JPA repository for {@link BreakdownTechnicianAssignment}.
  */
 @Repository
 public interface BreakdownTechnicianAssignmentRepository extends JpaRepository<BreakdownTechnicianAssignment, Long> {
+
+    List<BreakdownTechnicianAssignment> findAllByBreakdownIdOrderByAssignedAtDesc(Long breakdownId);
+
+    void deleteAllByBreakdownId(Long breakdownId);
 }

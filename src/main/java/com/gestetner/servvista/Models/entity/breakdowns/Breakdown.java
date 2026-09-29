@@ -84,6 +84,9 @@ public class Breakdown {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "expected_completion_at")
+    private LocalDateTime expectedCompletionAt;
+
     @Column(name = "contact_email", nullable = false)
     private String contactEmail;
 
@@ -288,6 +291,14 @@ public class Breakdown {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getExpectedCompletionAt() {
+        return expectedCompletionAt;
+    }
+
+    public void setExpectedCompletionAt(LocalDateTime expectedCompletionAt) {
+        this.expectedCompletionAt = expectedCompletionAt;
     }
 
     public String getContactEmail() {
