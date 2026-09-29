@@ -1,5 +1,6 @@
 package com.gestetner.servvista.Repositories.meters;
 
+import com.gestetner.servvista.Models.Enums.Meters.MeterCounterCode;
 import com.gestetner.servvista.Models.entity.meters.MeterCounterType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -9,4 +10,9 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface MeterCounterTypeRepository extends JpaRepository<MeterCounterType, Long> {
+
+    boolean existsByCounterCode(MeterCounterCode counterCode);
+
+    boolean existsByCounterCodeAndMeterCounterTypeIdNot(
+            MeterCounterCode counterCode, Long meterCounterTypeId);
 }

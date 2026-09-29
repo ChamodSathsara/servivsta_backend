@@ -11,6 +11,7 @@ import com.gestetner.servvista.Models.entity.customers.SiteContact;
 import com.gestetner.servvista.Models.entity.machines.Machine;
 import com.gestetner.servvista.Models.entity.machines.MachineInvoice;
 import com.gestetner.servvista.Models.entity.machines.MachineModel;
+import com.gestetner.servvista.Models.entity.machines.MachineStatusHistory;
 import com.gestetner.servvista.Repositories.customers.CustomerRepository;
 import com.gestetner.servvista.Repositories.customers.CustomerSiteRepository;
 import com.gestetner.servvista.Repositories.customers.SiteContactRepository;
@@ -19,6 +20,7 @@ import com.gestetner.servvista.Repositories.identity.UserRepository;
 import com.gestetner.servvista.Repositories.machines.MachineInvoiceRepository;
 import com.gestetner.servvista.Repositories.machines.MachineModelRepository;
 import com.gestetner.servvista.Repositories.machines.MachineRepository;
+import com.gestetner.servvista.Repositories.machines.MachineStatusHistoryRepository;
 import com.gestetner.servvista.Repositories.organization.CityRepository;
 import com.gestetner.servvista.Repositories.sales.DealerRepository;
 import com.gestetner.servvista.Repositories.sales.RepRepository;
@@ -37,6 +39,7 @@ import java.util.Locale;
 public class MachineService {
 
     private final MachineRepository machineRepository;
+    private final MachineStatusHistoryRepository machineStatusHistoryRepository;
     private final MachineModelRepository machineModelRepository;
     private final MachineInvoiceRepository machineInvoiceRepository;
     private final CustomerRepository customerRepository;
@@ -51,6 +54,7 @@ public class MachineService {
 
     public MachineService(
             MachineRepository machineRepository,
+            MachineStatusHistoryRepository machineStatusHistoryRepository,
             MachineModelRepository machineModelRepository,
             MachineInvoiceRepository machineInvoiceRepository,
             CustomerRepository customerRepository,
@@ -63,6 +67,7 @@ public class MachineService {
             SalesmanRepository salesmanRepository,
             UserRepository userRepository) {
         this.machineRepository = machineRepository;
+        this.machineStatusHistoryRepository = machineStatusHistoryRepository;
         this.machineModelRepository = machineModelRepository;
         this.machineInvoiceRepository = machineInvoiceRepository;
         this.customerRepository = customerRepository;
@@ -90,6 +95,14 @@ public class MachineService {
             Machine machine = createMachine(
                     request.machine(), site.getCustomerSiteId(), invoice.getMachineInvoiceId(),
                     request.performedBy(), now);
+
+            addStatusHistory(
+                    machine.getMachineId(),
+                    machine.getCurrentStatus(),
+                    machine.getCurrentStatus(),
+                    request.performedBy(),
+                    request.statusReason(),
+                    now);
 
             return response(machine, model, site, contact, invoice);
         } catch (DataIntegrityViolationException exception) {
@@ -132,6 +145,7 @@ public class MachineService {
         MachineModel model = validateReferences(request);
         validateUpdateUniqueValues(machineId, site, contact, invoice, request);
         LocalDateTime now = LocalDateTime.now();
+        var previousStatus = machine.getCurrentStatus();
 
         try {
             updateSite(site, request.customerSite(), request.performedBy(), now);
@@ -143,6 +157,16 @@ public class MachineService {
             siteContactRepository.saveAndFlush(contact);
             machineInvoiceRepository.saveAndFlush(invoice);
             machineRepository.saveAndFlush(machine);
+
+            if (previousStatus != machine.getCurrentStatus()) {
+                addStatusHistory(
+                        machineId,
+                        previousStatus,
+                        machine.getCurrentStatus(),
+                        request.performedBy(),
+                        request.statusReason(),
+                        now);
+            }
 
             return response(machine, model, site, contact, invoice);
         } catch (DataIntegrityViolationException exception) {
@@ -158,6 +182,8 @@ public class MachineService {
         Long invoiceId = machine.getMachineInvoiceId();
 
         try {
+            machineStatusHistoryRepository.deleteAllByMachineId(machineId);
+            machineStatusHistoryRepository.flush();
             machineRepository.delete(machine);
             machineRepository.flush();
 
@@ -469,6 +495,23 @@ public class MachineService {
 
     private String nextReferenceNumber() {
         return "Q" + String.format("%06d", machineRepository.findMaximumReferenceSequence() + 1);
+    }
+
+    private void addStatusHistory(
+            Long machineId,
+            com.gestetner.servvista.Models.Enums.Machines.MachineStatus previousStatus,
+            com.gestetner.servvista.Models.Enums.Machines.MachineStatus newStatus,
+            Long changedBy,
+            String reason,
+            LocalDateTime changedAt) {
+        MachineStatusHistory history = new MachineStatusHistory();
+        history.setMachineId(machineId);
+        history.setPreviousStatus(previousStatus);
+        history.setNewStatus(newStatus);
+        history.setChangedAt(changedAt);
+        history.setChangedBy(changedBy);
+        history.setReason(optional(reason));
+        machineStatusHistoryRepository.saveAndFlush(history);
     }
 
     private void validateOptional(

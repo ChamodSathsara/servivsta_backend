@@ -9,4 +9,9 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface SolutionTypeRepository extends JpaRepository<SolutionType, Long> {
+
+    boolean existsBySolutionCodeIgnoreCase(String solutionCode);
+
+    boolean existsBySolutionCodeIgnoreCaseAndSolutionTypeIdNot(
+            String solutionCode, Long solutionTypeId);
 }
