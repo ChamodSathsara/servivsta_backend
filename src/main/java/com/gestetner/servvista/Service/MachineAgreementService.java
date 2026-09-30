@@ -220,12 +220,33 @@ public class MachineAgreementService {
                 .map(this::historyResponse)
                 .toList();
 
+        var machine = agreement.getMachine() != null
+                ? agreement.getMachine()
+                : machineRepository.findById(agreement.getMachineId())
+                        .orElseThrow(() -> notFound("Machine", agreement.getMachineId()));
+        String installationJobNumber = agreement.getInstallationJobId() == null
+                ? null
+                : agreement.getInstallationJob() != null
+                        ? agreement.getInstallationJob().getJobNumber()
+                        : installationJobRepository.findById(agreement.getInstallationJobId())
+                                .orElseThrow(() -> notFound(
+                                        "Installation job", agreement.getInstallationJobId()))
+                                .getJobNumber();
+        String previousAgreementNumber = agreement.getPreviousAgreementId() == null
+                ? null
+                : agreement.getPreviousAgreement() != null
+                        ? agreement.getPreviousAgreement().getAgreementNumber()
+                        : agreementRepository.findById(agreement.getPreviousAgreementId())
+                                .orElseThrow(() -> notFound(
+                                        "Previous agreement", agreement.getPreviousAgreementId()))
+                                .getAgreementNumber();
+
         return new MachineAgreementResponse(
                 agreement.getAgreementId(),
                 agreement.getAgreementNumber(),
                 agreement.getMachineId(),
-                agreement.getMachine().getMachineReferenceNumber(),
-                agreement.getMachine().getSerialNumber(),
+                machine.getMachineReferenceNumber(),
+                machine.getSerialNumber(),
                 agreement.getAgreementType(),
                 agreement.getAgreementStartDate(),
                 agreement.getAgreementEndDate(),
@@ -239,13 +260,9 @@ public class MachineAgreementService {
                 agreement.getAgreementStatus(),
                 agreement.getIsActive(),
                 agreement.getInstallationJobId(),
-                agreement.getInstallationJob() == null
-                        ? null
-                        : agreement.getInstallationJob().getJobNumber(),
+                installationJobNumber,
                 agreement.getPreviousAgreementId(),
-                agreement.getPreviousAgreement() == null
-                        ? null
-                        : agreement.getPreviousAgreement().getAgreementNumber(),
+                previousAgreementNumber,
                 agreement.getNote(),
                 agreement.getCreatedBy(),
                 agreement.getCreatedAt(),

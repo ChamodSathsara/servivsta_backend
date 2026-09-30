@@ -4,6 +4,10 @@ package com.gestetner.servvista.Repositories.machines;
 import com.gestetner.servvista.Models.entity.machines.MachineInvoice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.Query;
+
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Spring Data JPA repository for {@link MachineInvoice}.
@@ -15,4 +19,10 @@ public interface MachineInvoiceRepository extends JpaRepository<MachineInvoice, 
 
     boolean existsByInvoiceNumberIgnoreCaseAndMachineInvoiceIdNot(
             String invoiceNumber, Long machineInvoiceId);
+
+    @Query("select invoice from MachineInvoice invoice join fetch invoice.customer order by invoice.machineInvoiceId")
+    List<MachineInvoice> findAllWithCustomer();
+
+    @Query("select invoice from MachineInvoice invoice join fetch invoice.customer where invoice.machineInvoiceId = :machineInvoiceId")
+    Optional<MachineInvoice> findByIdWithCustomer(Long machineInvoiceId);
 }

@@ -397,21 +397,49 @@ public class InstallationService {
                 .map(this::historyResponse)
                 .toList();
 
+        String customerName = job.getCustomer() != null
+                ? job.getCustomer().getCustomerName()
+                : customerRepository.findById(job.getCustomerId())
+                        .orElseThrow(() -> notFound("Customer", job.getCustomerId()))
+                        .getCustomerName();
+        String siteName = job.getCustomerSiteId() == null
+                ? null
+                : job.getCustomerSite() != null
+                        ? job.getCustomerSite().getSiteName()
+                        : siteRepository.findById(job.getCustomerSiteId())
+                                .orElseThrow(() -> notFound(
+                                        "Customer site", job.getCustomerSiteId()))
+                                .getSiteName();
+        String invoiceNumber = job.getMachineInvoiceId() == null
+                ? null
+                : job.getMachineInvoice() != null
+                        ? job.getMachineInvoice().getInvoiceNumber()
+                        : invoiceRepository.findById(job.getMachineInvoiceId())
+                                .orElseThrow(() -> notFound(
+                                        "Machine invoice", job.getMachineInvoiceId()))
+                                .getInvoiceNumber();
+        String technicianName = job.getAssignedTechnician() != null
+                ? job.getAssignedTechnician().getTechnicianName()
+                : technicianRepository.findById(job.getAssignedTechnicianId())
+                        .orElseThrow(() -> notFound(
+                                "Technician", job.getAssignedTechnicianId()))
+                        .getTechnicianName();
+
         return new InstallationJobResponse(
                 job.getInstallationJobId(),
                 job.getJobNumber(),
                 job.getCompany(),
                 job.getDivision(),
                 job.getCustomerId(),
-                job.getCustomer().getCustomerName(),
+                customerName,
                 job.getCustomerSiteId(),
-                job.getCustomerSite() == null ? null : job.getCustomerSite().getSiteName(),
+                siteName,
                 job.getMachineInvoiceId(),
-                job.getMachineInvoice() == null ? null : job.getMachineInvoice().getInvoiceNumber(),
+                invoiceNumber,
                 job.getDealerId(),
                 job.getRepId(),
                 job.getAssignedTechnicianId(),
-                job.getAssignedTechnician().getTechnicianName(),
+                technicianName,
                 job.getExpectedInstallDate(),
                 job.getStatus(),
                 job.getCreatedBy(),
