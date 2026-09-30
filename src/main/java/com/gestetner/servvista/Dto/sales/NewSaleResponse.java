@@ -12,6 +12,8 @@ public record NewSaleResponse(
         String machineReferenceNumber,
         String serialNumber,
         MachineStatus machineStatus,
+        Long customerSiteId,
+        Long siteContactId,
         Long machineStatusHistoryId,
         Long machineAssignmentId,
         Long mainTechnicianAssignmentId,

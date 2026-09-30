@@ -9,6 +9,7 @@ import com.gestetner.servvista.Dto.sales.NewSaleResponse;
 import com.gestetner.servvista.Models.Enums.Machines.TechnicianAssignmentRole;
 import com.gestetner.servvista.Models.Enums.Machines.WarrantyStatus;
 import com.gestetner.servvista.Models.entity.customers.CustomerSite;
+import com.gestetner.servvista.Models.entity.customers.SiteContact;
 import com.gestetner.servvista.Models.entity.machines.Machine;
 import com.gestetner.servvista.Models.entity.machines.MachineAssignment;
 import com.gestetner.servvista.Models.entity.machines.MachineInvoice;
@@ -19,6 +20,7 @@ import com.gestetner.servvista.Models.entity.machines.MachineTechnicianAssignmen
 import com.gestetner.servvista.Models.entity.machines.MachineWarranty;
 import com.gestetner.servvista.Repositories.customers.CustomerRepository;
 import com.gestetner.servvista.Repositories.customers.CustomerSiteRepository;
+import com.gestetner.servvista.Repositories.customers.SiteContactRepository;
 import com.gestetner.servvista.Repositories.identity.TechnicianRepository;
 import com.gestetner.servvista.Repositories.identity.UserRepository;
 import com.gestetner.servvista.Repositories.machines.MachineAssignmentRepository;
@@ -32,6 +34,7 @@ import com.gestetner.servvista.Repositories.machines.MachineWarrantyRepository;
 import com.gestetner.servvista.Repositories.sales.DealerRepository;
 import com.gestetner.servvista.Repositories.sales.RepRepository;
 import com.gestetner.servvista.Repositories.sales.SalesmanRepository;
+import com.gestetner.servvista.Repositories.organization.CityRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -51,6 +54,8 @@ public class NewSaleService {
     private final MachineInvoiceRepository invoiceRepository;
     private final CustomerRepository customerRepository;
     private final CustomerSiteRepository siteRepository;
+    private final SiteContactRepository siteContactRepository;
+    private final CityRepository cityRepository;
     private final TechnicianRepository technicianRepository;
     private final DealerRepository dealerRepository;
     private final RepRepository repRepository;
@@ -70,6 +75,8 @@ public class NewSaleService {
             MachineInvoiceRepository invoiceRepository,
             CustomerRepository customerRepository,
             CustomerSiteRepository siteRepository,
+            SiteContactRepository siteContactRepository,
+            CityRepository cityRepository,
             TechnicianRepository technicianRepository,
             DealerRepository dealerRepository,
             RepRepository repRepository,
@@ -87,6 +94,8 @@ public class NewSaleService {
         this.invoiceRepository = invoiceRepository;
         this.customerRepository = customerRepository;
         this.siteRepository = siteRepository;
+        this.siteContactRepository = siteContactRepository;
+        this.cityRepository = cityRepository;
         this.technicianRepository = technicianRepository;
         this.dealerRepository = dealerRepository;
         this.repRepository = repRepository;
@@ -106,17 +115,19 @@ public class NewSaleService {
         LocalDateTime now = LocalDateTime.now();
 
         try {
-            Machine machine = createMachine(request, now);
+            CustomerSite site = createCustomerSite(request, now);
+            SiteContact contact = createSiteContact(request, site.getCustomerSiteId(), now);
+            Machine machine = createMachine(request, site.getCustomerSiteId(), now);
             MachineStatusHistory machineHistory = createMachineStatusHistory(machine, request, now);
 
             InstallationJobResponse installation = installationService.createJob(
-                    installationRequest(request));
+                    installationRequest(request, site.getCustomerSiteId()));
             MachineAgreementResponse agreement = agreementService.create(
                     agreementRequest(request, machine.getMachineId(), installation.installationJobId()));
 
             MachineAssignment assignment = createMachineAssignment(
                     request, machine.getMachineId(), agreement.agreementId(),
-                    installation.installationJobId(), now);
+                    installation.installationJobId(), site.getCustomerSiteId(), now);
             MachineTechnicianAssignment mainAssignment = createTechnicianAssignment(
                     request, machine.getMachineId(), request.technicians().mainTechnicianId(),
                     TechnicianAssignmentRole.MAIN, now);
@@ -128,7 +139,8 @@ public class NewSaleService {
 
             return new NewSaleResponse(
                     machine.getMachineId(), machine.getMachineReferenceNumber(), machine.getSerialNumber(),
-                    machine.getCurrentStatus(), machineHistory.getMachineStatusHistoryId(),
+                    machine.getCurrentStatus(), site.getCustomerSiteId(), contact.getSiteContactId(),
+                    machineHistory.getMachineStatusHistoryId(),
                     assignment.getMachineAssignmentId(),
                     mainAssignment.getMachineTechnicianAssignmentId(),
                     serviceAssignment.getMachineTechnicianAssignmentId(),
@@ -148,6 +160,12 @@ public class NewSaleService {
 
         require(userRepository.existsById(request.performedBy()), "User", request.performedBy());
         require(customerRepository.existsById(assignment.customerId()), "Customer", assignment.customerId());
+        require(cityRepository.existsById(request.customerSite().cityId()),
+                "City", request.customerSite().cityId());
+        if (!request.customerSite().customerId().equals(assignment.customerId())) {
+            throw new IllegalArgumentException(
+                    "Customer site customerId must match assignment customerId");
+        }
         require(technicianRepository.existsById(request.technicians().mainTechnicianId()),
                 "Main technician", request.technicians().mainTechnicianId());
         require(technicianRepository.existsById(request.technicians().serviceTechnicianId()),
@@ -160,10 +178,12 @@ public class NewSaleService {
                     "Machine company must match the selected machine model company");
         }
 
-        CustomerSite site = siteRepository.findById(machine.customerSiteId())
-                .orElseThrow(() -> notFound("Customer site", machine.customerSiteId()));
-        if (!site.getCustomerId().equals(assignment.customerId())) {
-            throw new IllegalArgumentException("Customer site does not belong to the selected customer");
+        String siteName = request.customerSite().siteName().trim();
+        if (siteRepository.existsByCustomerIdAndSiteNameIgnoreCase(
+                assignment.customerId(), siteName)) {
+            throw new IllegalStateException(
+                    "Customer site '" + siteName + "' already exists for customer "
+                            + assignment.customerId());
         }
 
         MachineInvoice invoice = invoiceRepository.findById(machine.machineInvoiceId())
@@ -185,7 +205,43 @@ public class NewSaleService {
         }
     }
 
-    private Machine createMachine(NewSaleRequest request, LocalDateTime now) {
+    private CustomerSite createCustomerSite(NewSaleRequest request, LocalDateTime now) {
+        var data = request.customerSite();
+        CustomerSite site = new CustomerSite();
+        site.setCustomerId(data.customerId());
+        site.setSiteName(data.siteName().trim());
+        site.setAddressLine1(data.addressLine1().trim());
+        site.setAddressLine2(optional(data.addressLine2()));
+        site.setAddressLine3(optional(data.addressLine3()));
+        site.setArea(data.area());
+        site.setCityId(data.cityId());
+        site.setLatitude(data.latitude());
+        site.setLongitude(data.longitude());
+        site.setIsHeadOffice(Boolean.TRUE.equals(data.isHeadOffice()));
+        site.setIsActive(data.isActive() == null || data.isActive());
+        site.setCreatedBy(request.performedBy());
+        site.setCreatedAt(now);
+        return siteRepository.saveAndFlush(site);
+    }
+
+    private SiteContact createSiteContact(
+            NewSaleRequest request, Long customerSiteId, LocalDateTime now) {
+        var data = request.siteContact();
+        SiteContact contact = new SiteContact();
+        contact.setCustomerSiteId(customerSiteId);
+        contact.setContactName(data.contactName().trim());
+        contact.setMobileNumber(optional(data.mobileNumber()));
+        contact.setEmail(data.email().trim().toLowerCase(Locale.ROOT));
+        contact.setDesignation(optional(data.designation()));
+        contact.setIsPrimary(Boolean.TRUE.equals(data.isPrimary()));
+        contact.setIsActive(data.isActive() == null || data.isActive());
+        contact.setCreatedBy(request.performedBy());
+        contact.setCreatedAt(now);
+        return siteContactRepository.saveAndFlush(contact);
+    }
+
+    private Machine createMachine(
+            NewSaleRequest request, Long customerSiteId, LocalDateTime now) {
         NewSaleRequest.MachineData data = request.machine();
         Machine machine = new Machine();
         machine.setMachineReferenceNumber(
@@ -195,7 +251,7 @@ public class NewSaleService {
         machine.setDivision(data.division());
         machine.setModelId(data.modelId());
         machine.setCurrentStatus(data.currentStatus());
-        machine.setCurrentCustomerSiteId(data.customerSiteId());
+        machine.setCurrentCustomerSiteId(customerSiteId);
         machine.setCurrentMainTechnicianId(request.technicians().mainTechnicianId());
         machine.setCurrentServiceTechnicianId(request.technicians().serviceTechnicianId());
         machine.setMachineInvoiceId(data.machineInvoiceId());
@@ -222,10 +278,11 @@ public class NewSaleService {
         return machineStatusHistoryRepository.saveAndFlush(history);
     }
 
-    private InstallationJobRequest installationRequest(NewSaleRequest request) {
+    private InstallationJobRequest installationRequest(
+            NewSaleRequest request, Long customerSiteId) {
         return new InstallationJobRequest(
                 request.machine().company(), request.machine().division(),
-                request.assignment().customerId(), request.machine().customerSiteId(),
+                request.assignment().customerId(), customerSiteId,
                 request.machine().machineInvoiceId(), request.machine().dealerId(),
                 request.machine().repId(), request.technicians().mainTechnicianId(),
                 request.installation().expectedInstallDate(), request.installation().status(),
@@ -245,11 +302,11 @@ public class NewSaleService {
 
     private MachineAssignment createMachineAssignment(
             NewSaleRequest request, Long machineId, Long agreementId,
-            Long installationJobId, LocalDateTime now) {
+            Long installationJobId, Long customerSiteId, LocalDateTime now) {
         MachineAssignment assignment = new MachineAssignment();
         assignment.setMachineId(machineId);
         assignment.setCustomerId(request.assignment().customerId());
-        assignment.setCustomerSiteId(request.machine().customerSiteId());
+        assignment.setCustomerSiteId(customerSiteId);
         assignment.setAssignmentType(request.assignment().assignmentType());
         assignment.setAgreementId(agreementId);
         assignment.setInstallationJobId(installationJobId);

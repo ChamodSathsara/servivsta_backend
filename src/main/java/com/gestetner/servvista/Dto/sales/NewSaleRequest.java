@@ -9,6 +9,8 @@ import com.gestetner.servvista.Models.Enums.Machines.WarrantyStatus;
 import com.gestetner.servvista.Models.Enums.Machines.WarrantyType;
 import com.gestetner.servvista.Models.Enums.Organization.Company;
 import com.gestetner.servvista.Models.Enums.Organization.Division;
+import com.gestetner.servvista.Dto.machines.CustomerSiteData;
+import com.gestetner.servvista.Dto.machines.SiteContactData;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -23,6 +25,8 @@ import java.time.LocalDate;
 
 public record NewSaleRequest(
         @NotNull @Valid MachineData machine,
+        @NotNull @Valid CustomerSiteData customerSite,
+        @NotNull @Valid SiteContactData siteContact,
         @NotNull @Valid AssignmentData assignment,
         @NotNull @Valid TechnicianData technicians,
         @NotNull @Valid WarrantyData warranty,
@@ -38,7 +42,6 @@ public record NewSaleRequest(
             @NotNull Division division,
             @NotNull @Positive Long modelId,
             @NotNull MachineStatus currentStatus,
-            @NotNull @Positive Long customerSiteId,
             @NotNull @Positive Long machineInvoiceId,
             @Positive Long dealerId,
             @Positive Long repId,
