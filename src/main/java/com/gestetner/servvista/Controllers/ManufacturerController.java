@@ -30,6 +30,11 @@ public class ManufacturerController {
         return service.getAll();
     }
 
+    @GetMapping("/{manufacturerId}") @Operation(summary = "Get a manufacturer by ID")
+    public ManufacturerResponse getById(@PathVariable Long manufacturerId) {
+        return service.getById(manufacturerId);
+    }
+
     @PutMapping("/{manufacturerId}") @Operation(summary = "Update a manufacturer")
     public ManufacturerResponse update(@PathVariable Long manufacturerId, @Valid @RequestBody ManufacturerRequest request) {
         return service.update(manufacturerId, request);

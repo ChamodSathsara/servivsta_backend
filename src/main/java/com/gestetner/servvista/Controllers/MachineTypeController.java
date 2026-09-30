@@ -30,6 +30,11 @@ public class MachineTypeController {
         return service.getAll();
     }
 
+    @GetMapping("/{machineTypeId}") @Operation(summary = "Get a machine type by ID")
+    public MachineTypeResponse getById(@PathVariable Long machineTypeId) {
+        return service.getById(machineTypeId);
+    }
+
     @PutMapping("/{machineTypeId}") @Operation(summary = "Update a machine type")
     public MachineTypeResponse update(@PathVariable Long machineTypeId, @Valid @RequestBody MachineTypeRequest request) {
         return service.update(machineTypeId, request);

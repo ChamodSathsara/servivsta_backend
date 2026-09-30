@@ -160,6 +160,18 @@ public class StaffUserService {
     }
 
     @Transactional(readOnly = true)
+    public TechnicianUserResponse getTechnician(Long technicianId) {
+        Technician technician = technicianRepository.findById(technicianId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Technician " + technicianId + " was not found"));
+        User user = requireLinkedUser(technician.getUser(), "technician", technicianId);
+        return new TechnicianUserResponse(
+                userMapper.toResponse(user), technician.getTechnicianId(),
+                technician.getTechCode(), technician.getTechnicianRole(),
+                getCompanies(user.getUserId()));
+    }
+
+    @Transactional(readOnly = true)
     public List<CoordinatorUserResponse> getCoordinators() {
         return coordinatorRepository.findAllWithUser().stream()
                 .map(coordinator -> new CoordinatorUserResponse(
@@ -168,6 +180,17 @@ public class StaffUserService {
                         coordinator.getCoordinatorRole(),
                         getCompanies(coordinator.getUserId())))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public CoordinatorUserResponse getCoordinator(Long coordinatorId) {
+        Coordinator coordinator = coordinatorRepository.findById(coordinatorId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Coordinator " + coordinatorId + " was not found"));
+        User user = requireLinkedUser(coordinator.getUser(), "coordinator", coordinatorId);
+        return new CoordinatorUserResponse(
+                userMapper.toResponse(user), coordinator.getCoordinatorId(),
+                coordinator.getCoordinatorRole(), getCompanies(user.getUserId()));
     }
 
     @Transactional(readOnly = true)
@@ -181,6 +204,17 @@ public class StaffUserService {
     }
 
     @Transactional(readOnly = true)
+    public FinanceUserResponse getFinance(Long financeId) {
+        Finance finance = financeRepository.findById(financeId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Finance profile " + financeId + " was not found"));
+        User user = requireLinkedUser(finance.getUser(), "finance", financeId);
+        return new FinanceUserResponse(
+                userMapper.toResponse(user), finance.getFinanceId(),
+                getCompanies(user.getUserId()));
+    }
+
+    @Transactional(readOnly = true)
     public List<SalesmanUserResponse> getSalesmen() {
         return salesmanRepository.findAllWithUser().stream()
                 .map(salesman -> new SalesmanUserResponse(
@@ -190,6 +224,18 @@ public class StaffUserService {
                         salesman.getCompany(),
                         getCompanies(salesman.getUserId())))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public SalesmanUserResponse getSalesman(Long salesmanId) {
+        Salesman salesman = salesmanRepository.findById(salesmanId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Salesman " + salesmanId + " was not found"));
+        User user = requireLinkedUser(salesman.getUser(), "salesman", salesmanId);
+        return new SalesmanUserResponse(
+                userMapper.toResponse(user), salesman.getSalesmanId(),
+                salesman.getSalesmanCode(), salesman.getCompany(),
+                getCompanies(user.getUserId()));
     }
 
     public TechnicianUserResponse updateTechnician(
@@ -219,6 +265,26 @@ public class StaffUserService {
         }
     }
 
+    public void deleteTechnician(Long technicianId) {
+        Technician technician = technicianRepository.findById(technicianId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Technician " + technicianId + " was not found"));
+        User user = requireLinkedUser(technician.getUser(), "technician", technicianId);
+        try {
+            userCompanyRepository.deleteAllByUserId(user.getUserId());
+            userCompanyRepository.flush();
+            technicianRepository.delete(technician);
+            technicianRepository.flush();
+            userRepository.delete(user);
+            userRepository.flush();
+        } catch (DataIntegrityViolationException exception) {
+            throw new IllegalStateException(
+                    "Technician " + technicianId
+                            + " cannot be deleted because it is referenced by another record",
+                    exception);
+        }
+    }
+
     public CoordinatorUserResponse updateCoordinator(
             Long coordinatorId,
             UpdateCoordinatorUserRequest request) {
@@ -244,6 +310,20 @@ public class StaffUserService {
         }
     }
 
+    public void deleteCoordinator(Long coordinatorId) {
+        Coordinator coordinator = coordinatorRepository.findById(coordinatorId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Coordinator " + coordinatorId + " was not found"));
+        User user = requireLinkedUser(coordinator.getUser(), "coordinator", coordinatorId);
+        deleteProfileAndUser(
+                user,
+                () -> {
+                    coordinatorRepository.delete(coordinator);
+                    coordinatorRepository.flush();
+                },
+                "Coordinator " + coordinatorId);
+    }
+
     public FinanceUserResponse updateFinance(Long financeId, UpdateFinanceUserRequest request) {
         try {
             Finance finance = financeRepository.findById(financeId)
@@ -262,6 +342,20 @@ public class StaffUserService {
         } catch (DataIntegrityViolationException exception) {
             throw duplicateDetails(exception);
         }
+    }
+
+    public void deleteFinance(Long financeId) {
+        Finance finance = financeRepository.findById(financeId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Finance profile " + financeId + " was not found"));
+        User user = requireLinkedUser(finance.getUser(), "finance", financeId);
+        deleteProfileAndUser(
+                user,
+                () -> {
+                    financeRepository.delete(finance);
+                    financeRepository.flush();
+                },
+                "Finance profile " + financeId);
     }
 
     public SalesmanUserResponse updateSalesman(
@@ -290,6 +384,25 @@ public class StaffUserService {
         }
     }
 
+    public void deleteSalesman(Long salesmanId) {
+        Salesman salesman = salesmanRepository.findById(salesmanId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Salesman " + salesmanId + " was not found"));
+        User user = requireLinkedUser(salesman.getUser(), "salesman", salesmanId);
+        try {
+            userCompanyRepository.deleteAllByUserId(user.getUserId());
+            userCompanyRepository.flush();
+            salesmanRepository.delete(salesman);
+            salesmanRepository.flush();
+            userRepository.delete(user);
+            userRepository.flush();
+        } catch (DataIntegrityViolationException exception) {
+            throw new IllegalStateException(
+                    "Salesman " + salesmanId + " cannot be deleted because it is referenced by another record",
+                    exception);
+        }
+    }
+
     private User createUser(UserAccountRequest request, Role role) {
         String normalizedEmail = request.email().trim().toLowerCase(Locale.ROOT);
         if (userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
@@ -302,6 +415,20 @@ public class StaffUserService {
                 passwordEncoder.encode(request.password()),
                 LocalDateTime.now());
         return userRepository.saveAndFlush(user);
+    }
+
+    private void deleteProfileAndUser(User user, Runnable deleteProfile, String resourceName) {
+        try {
+            userCompanyRepository.deleteAllByUserId(user.getUserId());
+            userCompanyRepository.flush();
+            deleteProfile.run();
+            userRepository.delete(user);
+            userRepository.flush();
+        } catch (DataIntegrityViolationException exception) {
+            throw new IllegalStateException(
+                    resourceName + " cannot be deleted because it is referenced by another record",
+                    exception);
+        }
     }
 
     private List<Company> assignCompanies(User user, CompanyAssignmentRequest request) {

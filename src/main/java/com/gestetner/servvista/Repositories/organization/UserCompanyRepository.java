@@ -14,4 +14,6 @@ public interface UserCompanyRepository extends JpaRepository<UserCompany, Long> 
     List<UserCompany> findAllByUserIdIn(Collection<Long> userIds);
 
     List<UserCompany> findAllByUserIdOrderByUserCompanyId(Long userId);
+
+    void deleteAllByUserId(Long userId);
 }

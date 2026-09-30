@@ -22,6 +22,8 @@ public class MachineTypeService {
     }
     @Transactional(readOnly = true)
     public List<MachineTypeResponse> getAll() { return repository.findAll(Sort.by("machineTypeId")).stream().map(this::response).toList(); }
+    @Transactional(readOnly = true)
+    public MachineTypeResponse getById(Long id) { return response(find(id)); }
     public MachineTypeResponse update(Long id, MachineTypeRequest request) {
         MachineType type = find(id); String name = request.machineTypeName().trim(); ensureName(name, id);
         try { apply(type, request, name, false); return response(repository.saveAndFlush(type)); }

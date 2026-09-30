@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 public class MachineLiveLocation {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "machine_id", nullable = false, updatable = false)
     private Long machineId;
 

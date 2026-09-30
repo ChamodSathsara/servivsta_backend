@@ -23,6 +23,8 @@ public class ManufacturerService {
     }
     @Transactional(readOnly = true)
     public List<ManufacturerResponse> getAll() { return repository.findAll(Sort.by("manufacturerId")).stream().map(this::response).toList(); }
+    @Transactional(readOnly = true)
+    public ManufacturerResponse getById(Long id) { return response(find(id)); }
     public ManufacturerResponse update(Long id, ManufacturerRequest request) {
         Manufacturer m = find(id); String name = request.manufacturerName().trim(); ensureName(name, id);
         try { apply(m, request, name, false); return response(repository.saveAndFlush(m)); }

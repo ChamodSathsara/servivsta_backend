@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -117,6 +118,18 @@ public class UserController {
         return ResponseEntity.ok(staffUserService.getTechnicians());
     }
 
+    @GetMapping("/technician/{technicianId}")
+    @Operation(summary = "Get a technician user by technician ID")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Technician returned"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "ADMIN role required"),
+            @ApiResponse(responseCode = "404", description = "Technician not found")
+    })
+    public ResponseEntity<TechnicianUserResponse> getTechnician(@PathVariable Long technicianId) {
+        return ResponseEntity.ok(staffUserService.getTechnician(technicianId));
+    }
+
     @GetMapping("/coordinator")
     @Operation(summary = "Get all coordinator users")
     @ApiResponses({
@@ -126,6 +139,18 @@ public class UserController {
     })
     public ResponseEntity<List<CoordinatorUserResponse>> getCoordinators() {
         return ResponseEntity.ok(staffUserService.getCoordinators());
+    }
+
+    @GetMapping("/coordinator/{coordinatorId}")
+    @Operation(summary = "Get a coordinator user by coordinator ID")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Coordinator returned"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "ADMIN role required"),
+            @ApiResponse(responseCode = "404", description = "Coordinator not found")
+    })
+    public ResponseEntity<CoordinatorUserResponse> getCoordinator(@PathVariable Long coordinatorId) {
+        return ResponseEntity.ok(staffUserService.getCoordinator(coordinatorId));
     }
 
     @GetMapping("/finance")
@@ -139,6 +164,18 @@ public class UserController {
         return ResponseEntity.ok(staffUserService.getFinanceUsers());
     }
 
+    @GetMapping("/finance/{financeId}")
+    @Operation(summary = "Get a finance user by finance ID")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Finance user returned"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "ADMIN role required"),
+            @ApiResponse(responseCode = "404", description = "Finance profile not found")
+    })
+    public ResponseEntity<FinanceUserResponse> getFinance(@PathVariable Long financeId) {
+        return ResponseEntity.ok(staffUserService.getFinance(financeId));
+    }
+
     @GetMapping("/salesman")
     @Operation(summary = "Get all salesman users")
     @ApiResponses({
@@ -148,6 +185,18 @@ public class UserController {
     })
     public ResponseEntity<List<SalesmanUserResponse>> getSalesmen() {
         return ResponseEntity.ok(staffUserService.getSalesmen());
+    }
+
+    @GetMapping("/salesman/{salesmanId}")
+    @Operation(summary = "Get a salesman user by salesman ID")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Salesman returned"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "ADMIN role required"),
+            @ApiResponse(responseCode = "404", description = "Salesman not found")
+    })
+    public ResponseEntity<SalesmanUserResponse> getSalesman(@PathVariable Long salesmanId) {
+        return ResponseEntity.ok(staffUserService.getSalesman(salesmanId));
     }
 
     @PutMapping("/technician/{technicianId}")
@@ -166,6 +215,20 @@ public class UserController {
         return ResponseEntity.ok(staffUserService.updateTechnician(technicianId, request));
     }
 
+    @DeleteMapping("/technician/{technicianId}")
+    @Operation(summary = "Delete a technician user and profile")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Technician deleted"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "ADMIN role required"),
+            @ApiResponse(responseCode = "404", description = "Technician not found"),
+            @ApiResponse(responseCode = "409", description = "Technician is referenced by another record")
+    })
+    public ResponseEntity<Void> deleteTechnician(@PathVariable Long technicianId) {
+        staffUserService.deleteTechnician(technicianId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/coordinator/{coordinatorId}")
     @Operation(summary = "Update a coordinator user and profile")
     @ApiResponses({
@@ -180,6 +243,20 @@ public class UserController {
             @PathVariable Long coordinatorId,
             @Valid @RequestBody UpdateCoordinatorUserRequest request) {
         return ResponseEntity.ok(staffUserService.updateCoordinator(coordinatorId, request));
+    }
+
+    @DeleteMapping("/coordinator/{coordinatorId}")
+    @Operation(summary = "Delete a coordinator user and profile")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Coordinator deleted"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "ADMIN role required"),
+            @ApiResponse(responseCode = "404", description = "Coordinator not found"),
+            @ApiResponse(responseCode = "409", description = "Coordinator is referenced by another record")
+    })
+    public ResponseEntity<Void> deleteCoordinator(@PathVariable Long coordinatorId) {
+        staffUserService.deleteCoordinator(coordinatorId);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/finance/{financeId}")
@@ -198,6 +275,20 @@ public class UserController {
         return ResponseEntity.ok(staffUserService.updateFinance(financeId, request));
     }
 
+    @DeleteMapping("/finance/{financeId}")
+    @Operation(summary = "Delete a finance user and profile")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Finance user deleted"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "ADMIN role required"),
+            @ApiResponse(responseCode = "404", description = "Finance profile not found"),
+            @ApiResponse(responseCode = "409", description = "Finance user is referenced by another record")
+    })
+    public ResponseEntity<Void> deleteFinance(@PathVariable Long financeId) {
+        staffUserService.deleteFinance(financeId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/salesman/{salesmanId}")
     @Operation(summary = "Update a salesman user and profile")
     @ApiResponses({
@@ -212,5 +303,19 @@ public class UserController {
             @PathVariable Long salesmanId,
             @Valid @RequestBody UpdateSalesmanUserRequest request) {
         return ResponseEntity.ok(staffUserService.updateSalesman(salesmanId, request));
+    }
+
+    @DeleteMapping("/salesman/{salesmanId}")
+    @Operation(summary = "Delete a salesman user and profile")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Salesman deleted"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "ADMIN role required"),
+            @ApiResponse(responseCode = "404", description = "Salesman not found"),
+            @ApiResponse(responseCode = "409", description = "Salesman is referenced by another record")
+    })
+    public ResponseEntity<Void> deleteSalesman(@PathVariable Long salesmanId) {
+        staffUserService.deleteSalesman(salesmanId);
+        return ResponseEntity.noContent().build();
     }
 }
