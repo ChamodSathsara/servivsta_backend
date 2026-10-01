@@ -2,6 +2,8 @@ package com.gestetner.servvista.Controllers;
 
 import com.gestetner.servvista.Dto.installations.InstallationJobRequest;
 import com.gestetner.servvista.Dto.installations.InstallationJobResponse;
+import com.gestetner.servvista.Dto.installations.CompleteInstallationJobRequest;
+import com.gestetner.servvista.Dto.installations.UpdateInstallationJobStatusRequest;
 import com.gestetner.servvista.Service.InstallationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -11,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -57,5 +60,21 @@ public class InstallationJobController {
             @PathVariable Long jobId,
             @Valid @RequestBody InstallationJobRequest request) {
         return ResponseEntity.ok(installationService.updateJob(jobId, request));
+    }
+
+    @PostMapping("/{jobId}/complete")
+    @Operation(summary = "Complete an installation job")
+    public ResponseEntity<InstallationJobResponse> complete(
+            @PathVariable Long jobId,
+            @Valid @RequestBody CompleteInstallationJobRequest request) {
+        return ResponseEntity.ok(installationService.completeJob(jobId, request));
+    }
+
+    @PatchMapping("/{jobId}/status")
+    @Operation(summary = "Change an installation job status")
+    public ResponseEntity<InstallationJobResponse> changeStatus(
+            @PathVariable Long jobId,
+            @Valid @RequestBody UpdateInstallationJobStatusRequest request) {
+        return ResponseEntity.ok(installationService.changeJobStatus(jobId, request));
     }
 }

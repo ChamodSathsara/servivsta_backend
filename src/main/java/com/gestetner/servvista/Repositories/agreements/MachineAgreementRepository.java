@@ -37,4 +37,8 @@ public interface MachineAgreementRepository extends JpaRepository<MachineAgreeme
             where agreement.agreementId = :agreementId
             """)
     Optional<MachineAgreement> findByIdWithDetails(Long agreementId);
+
+    Optional<MachineAgreement>
+            findFirstByMachineIdAndInstallationJobIdAndIsActiveTrueOrderByAgreementIdDesc(
+                    Long machineId, Long installationJobId);
 }

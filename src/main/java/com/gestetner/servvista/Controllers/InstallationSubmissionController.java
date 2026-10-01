@@ -22,7 +22,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/installation-submissions")
 @Tag(name = "Installation Submissions")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'COORDINATOR', 'TECHNICIAN')")
 public class InstallationSubmissionController {
 
     private final InstallationService installationService;

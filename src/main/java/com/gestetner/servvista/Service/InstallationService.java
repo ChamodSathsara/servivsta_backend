@@ -2,6 +2,8 @@ package com.gestetner.servvista.Service;
 
 import com.gestetner.servvista.Dto.installations.InstallationJobRequest;
 import com.gestetner.servvista.Dto.installations.InstallationJobResponse;
+import com.gestetner.servvista.Dto.installations.CompleteInstallationJobRequest;
+import com.gestetner.servvista.Dto.installations.UpdateInstallationJobStatusRequest;
 import com.gestetner.servvista.Dto.installations.InstallationStatusHistoryResponse;
 import com.gestetner.servvista.Dto.installations.InstallationSubmissionRequest;
 import com.gestetner.servvista.Dto.installations.InstallationSubmissionResponse;
@@ -35,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.EnumSet;
 
 @Service
 @Transactional
@@ -53,6 +56,7 @@ public class InstallationService {
     private final DealerRepository dealerRepository;
     private final RepRepository repRepository;
     private final UserRepository userRepository;
+    private final ServiceScheduleService serviceScheduleService;
 
     public InstallationService(
             InstallationJobRepository jobRepository,
@@ -67,7 +71,8 @@ public class InstallationService {
             TechnicianRepository technicianRepository,
             DealerRepository dealerRepository,
             RepRepository repRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            ServiceScheduleService serviceScheduleService) {
         this.jobRepository = jobRepository;
         this.submissionRepository = submissionRepository;
         this.historyRepository = historyRepository;
@@ -81,6 +86,7 @@ public class InstallationService {
         this.dealerRepository = dealerRepository;
         this.repRepository = repRepository;
         this.userRepository = userRepository;
+        this.serviceScheduleService = serviceScheduleService;
     }
 
     public InstallationJobResponse createJob(InstallationJobRequest request) {
@@ -140,6 +146,90 @@ public class InstallationService {
         }
     }
 
+    public InstallationJobResponse completeJob(
+            Long jobId, CompleteInstallationJobRequest request) {
+        InstallationJob job = findJob(jobId);
+        requireExists(userRepository.existsById(request.performedBy()),
+                "User", request.performedBy());
+
+        if (!submissionRepository.existsByInstallationJobId(jobId)) {
+            throw new IllegalStateException(
+                    "Installation job " + jobId + " cannot be completed before it is submitted");
+        }
+        if (job.getStatus() == InstallationJobStatus.COMPLETED) {
+            throw new IllegalStateException(
+                    "Installation job " + jobId + " is already completed");
+        }
+        if (job.getStatus() != InstallationJobStatus.VERIFIED) {
+            throw new IllegalStateException(
+                    "Installation job " + jobId
+                            + " must be VERIFIED before it can be completed; current status is "
+                            + job.getStatus());
+        }
+
+        changeJobStatus(
+                job,
+                InstallationJobStatus.COMPLETED,
+                request.performedBy(),
+                request.note(),
+                LocalDateTime.now());
+        return jobResponse(findJob(jobId));
+    }
+
+    public InstallationJobResponse changeJobStatus(
+            Long jobId, UpdateInstallationJobStatusRequest request) {
+        InstallationJob job = findJob(jobId);
+        requireExists(userRepository.existsById(request.performedBy()),
+                "User", request.performedBy());
+
+        InstallationJobStatus previousStatus = job.getStatus();
+        InstallationJobStatus newStatus = request.status();
+        if (previousStatus == newStatus) {
+            throw new IllegalArgumentException(
+                    "Installation job " + jobId + " already has status " + newStatus);
+        }
+        if (!allowedNextStatuses(previousStatus).contains(newStatus)) {
+            throw new IllegalStateException(
+                    "Installation job status cannot change from " + previousStatus
+                            + " to " + newStatus);
+        }
+        if (newStatus == InstallationJobStatus.SUBMITTED
+                && !submissionRepository.existsByInstallationJobId(jobId)) {
+            throw new IllegalStateException(
+                    "Installation job " + jobId
+                            + " cannot be marked SUBMITTED without an installation submission");
+        }
+
+        changeJobStatus(
+                job, newStatus, request.performedBy(), request.note(), LocalDateTime.now());
+        return jobResponse(findJob(jobId));
+    }
+
+    private EnumSet<InstallationJobStatus> allowedNextStatuses(
+            InstallationJobStatus currentStatus) {
+        return switch (currentStatus) {
+            case ASSIGNED -> EnumSet.of(
+                    InstallationJobStatus.IN_PROGRESS,
+                    InstallationJobStatus.SUBMITTED,
+                    InstallationJobStatus.CANCELLED);
+            case IN_PROGRESS -> EnumSet.of(
+                    InstallationJobStatus.SUBMITTED,
+                    InstallationJobStatus.CANCELLED);
+            case SUBMITTED -> EnumSet.of(
+                    InstallationJobStatus.VERIFIED,
+                    InstallationJobStatus.REJECTED,
+                    InstallationJobStatus.CANCELLED);
+            case VERIFIED -> EnumSet.of(
+                    InstallationJobStatus.COMPLETED,
+                    InstallationJobStatus.REJECTED,
+                    InstallationJobStatus.CANCELLED);
+            case REJECTED -> EnumSet.of(
+                    InstallationJobStatus.IN_PROGRESS,
+                    InstallationJobStatus.CANCELLED);
+            case COMPLETED, CANCELLED -> EnumSet.noneOf(InstallationJobStatus.class);
+        };
+    }
+
     public InstallationSubmissionResponse createSubmission(InstallationSubmissionRequest request) {
         if (submissionRepository.existsByInstallationJobId(request.installationJobId())) {
             throw new IllegalStateException(
@@ -148,6 +238,15 @@ public class InstallationService {
 
         SubmissionReferences references = validateSubmissionReferences(request);
         validateVerification(request);
+        if (!EnumSet.of(
+                InstallationJobStatus.ASSIGNED,
+                InstallationJobStatus.IN_PROGRESS,
+                InstallationJobStatus.REJECTED).contains(references.job().getStatus())) {
+            throw new IllegalStateException(
+                    "Installation job " + request.installationJobId()
+                            + " cannot be submitted from status "
+                            + references.job().getStatus());
+        }
         LocalDateTime now = LocalDateTime.now();
 
         try {
@@ -161,6 +260,8 @@ public class InstallationService {
             }
             changeJobStatus(job, InstallationJobStatus.SUBMITTED,
                     request.submittedBy(), request.statusNote(), now);
+            serviceScheduleService.generateForSubmission(
+                    request.machineId(), request.installationJobId(), now);
 
             return submissionResponse(
                     findSubmission(submission.getInstallationSubmissionId()));
@@ -462,19 +563,42 @@ public class InstallationService {
 
     private InstallationSubmissionResponse submissionResponse(
             InstallationSubmission submission) {
+        InstallationJob job = submission.getInstallationJob() != null
+                ? submission.getInstallationJob()
+                : jobRepository.findById(submission.getInstallationJobId())
+                        .orElseThrow(() -> notFound(
+                                "Installation job", submission.getInstallationJobId()));
+        Machine machine = submission.getMachine() != null
+                ? submission.getMachine()
+                : machineRepository.findById(submission.getMachineId())
+                        .orElseThrow(() -> notFound("Machine", submission.getMachineId()));
+        MachineModel model = submission.getModel() != null
+                ? submission.getModel()
+                : modelRepository.findById(submission.getModelId())
+                        .orElseThrow(() -> notFound("Machine model", submission.getModelId()));
+        CustomerSite site = submission.getCustomerSite() != null
+                ? submission.getCustomerSite()
+                : siteRepository.findById(submission.getCustomerSiteId())
+                        .orElseThrow(() -> notFound(
+                                "Customer site", submission.getCustomerSiteId()));
+        SiteContact contact = submission.getSiteContact() != null
+                ? submission.getSiteContact()
+                : contactRepository.findById(submission.getSiteContactId())
+                        .orElseThrow(() -> notFound(
+                                "Site contact", submission.getSiteContactId()));
         return new InstallationSubmissionResponse(
                 submission.getInstallationSubmissionId(),
                 submission.getInstallationJobId(),
-                submission.getInstallationJob().getJobNumber(),
-                submission.getInstallationJob().getStatus(),
+                job.getJobNumber(),
+                job.getStatus(),
                 submission.getMachineId(),
-                submission.getMachine().getMachineReferenceNumber(),
+                machine.getMachineReferenceNumber(),
                 submission.getModelId(),
-                submission.getModel().getModelNumber(),
+                model.getModelNumber(),
                 submission.getCustomerSiteId(),
-                submission.getCustomerSite().getSiteName(),
+                site.getSiteName(),
                 submission.getSiteContactId(),
-                submission.getSiteContact().getContactName(),
+                contact.getContactName(),
                 submission.getInstallDate(),
                 submission.getInitialMeterReading(),
                 submission.getAgreementTypeRequested(),

@@ -37,6 +37,8 @@ import com.gestetner.servvista.Repositories.sales.SalesmanRepository;
 import com.gestetner.servvista.Repositories.organization.CityRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +50,8 @@ import java.util.function.Predicate;
 @Service
 @Transactional
 public class NewSaleService {
+
+    private static final Logger log = LoggerFactory.getLogger(NewSaleService.class);
 
     private final MachineRepository machineRepository;
     private final MachineModelRepository modelRepository;
@@ -113,28 +117,39 @@ public class NewSaleService {
     public NewSaleResponse create(NewSaleRequest request) {
         validate(request);
         LocalDateTime now = LocalDateTime.now();
+        String phase = "customer_site";
 
         try {
             CustomerSite site = createCustomerSite(request, now);
+            phase = "site_contact";
             SiteContact contact = createSiteContact(request, site.getCustomerSiteId(), now);
+            phase = "machine";
             Machine machine = createMachine(request, site.getCustomerSiteId(), now);
+            phase = "machine_status_history";
             MachineStatusHistory machineHistory = createMachineStatusHistory(machine, request, now);
 
+            phase = "installation_job_and_status_history";
             InstallationJobResponse installation = installationService.createJob(
                     installationRequest(request, site.getCustomerSiteId()));
+            phase = "machine_agreement_and_status_history";
             MachineAgreementResponse agreement = agreementService.create(
                     agreementRequest(request, machine.getMachineId(), installation.installationJobId()));
 
+            phase = "machine_assignment";
             MachineAssignment assignment = createMachineAssignment(
                     request, machine.getMachineId(), agreement.agreementId(),
                     installation.installationJobId(), site.getCustomerSiteId(), now);
+            phase = "main_machine_technician_assignment";
             MachineTechnicianAssignment mainAssignment = createTechnicianAssignment(
                     request, machine.getMachineId(), request.technicians().mainTechnicianId(),
                     TechnicianAssignmentRole.MAIN, now);
+            phase = "service_machine_technician_assignment";
             MachineTechnicianAssignment serviceAssignment = createTechnicianAssignment(
                     request, machine.getMachineId(), request.technicians().serviceTechnicianId(),
                     TechnicianAssignmentRole.SERVICE, now);
+            phase = "machine_warranty";
             MachineWarranty warranty = createWarranty(request, machine.getMachineId(), now);
+            phase = "machine_live_location";
             MachineLiveLocation location = createLocation(request, machine.getMachineId(), now);
 
             return new NewSaleResponse(
@@ -148,8 +163,20 @@ public class NewSaleService {
                     installation.installationJobId(), installation.jobNumber(), installation.status(),
                     agreement.agreementId(), agreement.agreementNumber(), agreement.agreementStatus(), now);
         } catch (DataIntegrityViolationException exception) {
+            String databaseMessage = mostSpecificMessage(exception);
+            log.error(
+                    "New sale failed during phase '{}'. serialNumber='{}', customerId={}, "
+                            + "invoiceId={}, modelId={}. Database cause: {}",
+                    phase,
+                    request.machine().serialNumber(),
+                    request.assignment().customerId(),
+                    request.machine().machineInvoiceId(),
+                    request.machine().modelId(),
+                    databaseMessage,
+                    exception);
             throw new IllegalStateException(
-                    "New sale could not be created because a unique or referenced value is invalid",
+                    "New sale could not be created during '" + phase
+                            + "' because a unique or referenced value is invalid",
                     exception);
         }
     }
@@ -379,6 +406,16 @@ public class NewSaleService {
 
     private String optional(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String mostSpecificMessage(Throwable throwable) {
+        Throwable current = throwable;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current.getMessage() == null
+                ? current.getClass().getName()
+                : current.getMessage();
     }
 
 }
