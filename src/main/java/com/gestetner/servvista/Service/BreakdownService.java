@@ -4,11 +4,13 @@ import com.gestetner.servvista.Dto.breakdowns.*;
 import com.gestetner.servvista.Models.Enums.Breakdowns.BreakdownAssignmentStatus;
 import com.gestetner.servvista.Models.Enums.Breakdowns.BreakdownReportedByType;
 import com.gestetner.servvista.Models.Enums.Breakdowns.BreakdownStatus;
+import com.gestetner.servvista.Models.Enums.Meters.MeterReadingSource;
 import com.gestetner.servvista.Models.entity.breakdowns.Breakdown;
 import com.gestetner.servvista.Models.entity.breakdowns.BreakdownRecall;
 import com.gestetner.servvista.Models.entity.breakdowns.BreakdownTechnicianAssignment;
 import com.gestetner.servvista.Models.entity.customerportal.CustomerPortalAccount;
 import com.gestetner.servvista.Models.entity.feedback.FieldServiceFeedback;
+import com.gestetner.servvista.Models.entity.meters.MeterReading;
 import com.gestetner.servvista.Repositories.breakdowns.BreakdownRecallRepository;
 import com.gestetner.servvista.Repositories.breakdowns.BreakdownRepository;
 import com.gestetner.servvista.Repositories.breakdowns.BreakdownTechnicianAssignmentRepository;
@@ -18,6 +20,8 @@ import com.gestetner.servvista.Repositories.feedback.FieldServiceFeedbackReposit
 import com.gestetner.servvista.Repositories.identity.TechnicianRepository;
 import com.gestetner.servvista.Repositories.identity.UserRepository;
 import com.gestetner.servvista.Repositories.machines.MachineRepository;
+import com.gestetner.servvista.Repositories.meters.MeterCounterTypeRepository;
+import com.gestetner.servvista.Repositories.meters.MeterReadingRepository;
 import com.gestetner.servvista.Repositories.services.SolutionTypeRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -42,6 +46,8 @@ public class BreakdownService {
     private final UserRepository userRepository;
     private final TechnicianRepository technicianRepository;
     private final SolutionTypeRepository solutionTypeRepository;
+    private final MeterCounterTypeRepository meterCounterTypeRepository;
+    private final MeterReadingRepository meterReadingRepository;
 
     public BreakdownService(
             BreakdownRepository breakdownRepository,
@@ -53,7 +59,9 @@ public class BreakdownService {
             CustomerPortalAccountRepository portalAccountRepository,
             UserRepository userRepository,
             TechnicianRepository technicianRepository,
-            SolutionTypeRepository solutionTypeRepository) {
+            SolutionTypeRepository solutionTypeRepository,
+            MeterCounterTypeRepository meterCounterTypeRepository,
+            MeterReadingRepository meterReadingRepository) {
         this.breakdownRepository = breakdownRepository;
         this.assignmentRepository = assignmentRepository;
         this.recallRepository = recallRepository;
@@ -64,6 +72,8 @@ public class BreakdownService {
         this.userRepository = userRepository;
         this.technicianRepository = technicianRepository;
         this.solutionTypeRepository = solutionTypeRepository;
+        this.meterCounterTypeRepository = meterCounterTypeRepository;
+        this.meterReadingRepository = meterReadingRepository;
     }
 
     public BreakdownCreateResponse create(BreakdownCreateRequest request) {
@@ -132,6 +142,56 @@ public class BreakdownService {
         breakdown.setCancelledBy(request.cancelledBy());
         breakdown.setCancelledAt(now);
         breakdown.setCancelReason(optional(request.cancelReason()));
+        breakdownRepository.saveAndFlush(breakdown);
+        return response(findBreakdown(breakdownId));
+    }
+
+    public BreakdownStartResponse start(Long breakdownId, BreakdownStartRequest request) {
+        Breakdown breakdown = findBreakdown(breakdownId);
+        if (breakdown.getStatus() != BreakdownStatus.ASSIGNED
+                && breakdown.getStatus() != BreakdownStatus.TRAVELLING) {
+            throw new IllegalStateException(
+                    "Only an assigned or travelling breakdown can be started");
+        }
+        requireExists(meterCounterTypeRepository.existsById(request.meterCounterTypeId()),
+                "Meter counter type", request.meterCounterTypeId());
+        requireExists(userRepository.existsById(request.capturedByUserId()),
+                "Capturing user", request.capturedByUserId());
+
+        LocalDateTime now = LocalDateTime.now();
+        breakdown.setStatus(BreakdownStatus.STARTED);
+        breakdown.setStartNote(optional(request.startNote()));
+        breakdown.setStartedAt(now);
+        breakdownRepository.saveAndFlush(breakdown);
+
+        MeterReading reading = new MeterReading();
+        reading.setMachineId(breakdown.getMachineId());
+        reading.setMeterCounterTypeId(request.meterCounterTypeId());
+        reading.setReadingValue(request.meterReading());
+        reading.setReadingDatetime(now);
+        reading.setSourceCode(MeterReadingSource.BREAKDOWN);
+        reading.setBreakdownId(breakdownId);
+        reading.setCapturedByUserId(request.capturedByUserId());
+        reading.setNote(optional(request.meterReadingNote()));
+        reading.setCreatedAt(now);
+        reading = meterReadingRepository.saveAndFlush(reading);
+
+        return new BreakdownStartResponse(
+                response(findBreakdown(breakdownId)), meterReadingResponse(reading));
+    }
+
+    public BreakdownResponse complete(Long breakdownId, BreakdownCompleteRequest request) {
+        Breakdown breakdown = findBreakdown(breakdownId);
+        if (breakdown.getStatus() != BreakdownStatus.STARTED) {
+            throw new IllegalStateException("Only a started breakdown can be completed");
+        }
+        requireExists(solutionTypeRepository.existsById(request.actualSolutionTypeId()),
+                "Actual solution type", request.actualSolutionTypeId());
+
+        breakdown.setStatus(BreakdownStatus.COMPLETED);
+        breakdown.setActualSolutionTypeId(request.actualSolutionTypeId());
+        breakdown.setSolutionNote(optional(request.solutionNote()));
+        breakdown.setCompletedAt(LocalDateTime.now());
         breakdownRepository.saveAndFlush(breakdown);
         return response(findBreakdown(breakdownId));
     }
@@ -382,9 +442,19 @@ public class BreakdownService {
     }
 
     private BreakdownResponse response(Breakdown b) {
+        String machineReferenceNumber = b.getMachine() != null
+                ? b.getMachine().getMachineReferenceNumber()
+                : machineRepository.findById(b.getMachineId())
+                        .map(machine -> machine.getMachineReferenceNumber())
+                        .orElseThrow(() -> notFound("Machine", b.getMachineId()));
+        String siteName = b.getCustomerSite() != null
+                ? b.getCustomerSite().getSiteName()
+                : siteRepository.findById(b.getCustomerSiteId())
+                        .map(site -> site.getSiteName())
+                        .orElseThrow(() -> notFound("Customer site", b.getCustomerSiteId()));
+
         return new BreakdownResponse(b.getBreakdownId(), b.getBreakdownNumber(), b.getMachineId(),
-                b.getMachine().getMachineReferenceNumber(), b.getCustomerSiteId(),
-                b.getCustomerSite().getSiteName(), b.getReportedByType(),
+                machineReferenceNumber, b.getCustomerSiteId(), siteName, b.getReportedByType(),
                 b.getReportedByPortalAccountId(), b.getReportedByUserId(), b.getReportedNote(),
                 b.getInformedSolutionTypeId(), b.getStatus(), b.getApprovedBy(), b.getApprovedAt(),
                 b.getStartNote(), b.getStartedAt(), b.getActualSolutionTypeId(), b.getSolutionNote(),
@@ -396,6 +466,14 @@ public class BreakdownService {
         return new BreakdownAssignmentResponse(a.getBreakdownTechnicianAssignmentId(), a.getBreakdownId(),
                 a.getTechnicianId(), a.getAssignedAt(), a.getAssignedBy(), a.getUnassignedAt(),
                 a.getAssignmentStatus(), a.getReason());
+    }
+
+    private BreakdownMeterReadingResponse meterReadingResponse(MeterReading reading) {
+        return new BreakdownMeterReadingResponse(
+                reading.getMeterReadingId(), reading.getMachineId(),
+                reading.getMeterCounterTypeId(), reading.getReadingValue(),
+                reading.getReadingDatetime(), reading.getSourceCode(), reading.getBreakdownId(),
+                reading.getCapturedByUserId(), reading.getNote(), reading.getCreatedAt());
     }
 
     private BreakdownRecallResponse recallResponse(BreakdownRecall r) {

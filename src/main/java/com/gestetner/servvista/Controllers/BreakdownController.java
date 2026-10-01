@@ -60,6 +60,22 @@ public class BreakdownController {
         return ResponseEntity.ok(breakdownService.cancel(breakdownId, request));
     }
 
+    @PatchMapping("/{breakdownId}/start")
+    @Operation(summary = "Start a breakdown and capture its meter reading")
+    public ResponseEntity<BreakdownStartResponse> start(
+            @PathVariable Long breakdownId,
+            @Valid @RequestBody BreakdownStartRequest request) {
+        return ResponseEntity.ok(breakdownService.start(breakdownId, request));
+    }
+
+    @PatchMapping("/{breakdownId}/complete")
+    @Operation(summary = "Complete a started breakdown")
+    public ResponseEntity<BreakdownResponse> complete(
+            @PathVariable Long breakdownId,
+            @Valid @RequestBody BreakdownCompleteRequest request) {
+        return ResponseEntity.ok(breakdownService.complete(breakdownId, request));
+    }
+
     @PutMapping("/{breakdownId}")
     @Operation(summary = "Update a breakdown")
     public ResponseEntity<BreakdownResponse> update(
