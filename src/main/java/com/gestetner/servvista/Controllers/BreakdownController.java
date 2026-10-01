@@ -26,8 +26,8 @@ public class BreakdownController {
 
     @PostMapping
     @Operation(summary = "Create a breakdown")
-    public ResponseEntity<BreakdownResponse> create(
-            @Valid @RequestBody BreakdownRequest request) {
+    public ResponseEntity<BreakdownCreateResponse> create(
+            @Valid @RequestBody BreakdownCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(breakdownService.create(request));
     }
@@ -42,6 +42,22 @@ public class BreakdownController {
     @Operation(summary = "Get a breakdown by ID")
     public ResponseEntity<BreakdownResponse> getById(@PathVariable Long breakdownId) {
         return ResponseEntity.ok(breakdownService.getById(breakdownId));
+    }
+
+    @PatchMapping("/{breakdownId}/technician")
+    @Operation(summary = "Change the technician assigned to a breakdown")
+    public ResponseEntity<BreakdownAssignmentResponse> changeTechnician(
+            @PathVariable Long breakdownId,
+            @Valid @RequestBody BreakdownTechnicianChangeRequest request) {
+        return ResponseEntity.ok(breakdownService.changeTechnician(breakdownId, request));
+    }
+
+    @PatchMapping("/{breakdownId}/cancel")
+    @Operation(summary = "Cancel a breakdown")
+    public ResponseEntity<BreakdownResponse> cancel(
+            @PathVariable Long breakdownId,
+            @Valid @RequestBody BreakdownCancelRequest request) {
+        return ResponseEntity.ok(breakdownService.cancel(breakdownId, request));
     }
 
     @PutMapping("/{breakdownId}")

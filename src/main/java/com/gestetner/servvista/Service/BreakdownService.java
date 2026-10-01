@@ -66,13 +66,22 @@ public class BreakdownService {
         this.solutionTypeRepository = solutionTypeRepository;
     }
 
-    public BreakdownResponse create(BreakdownRequest request) {
-        validateBreakdownReferences(request);
+    public BreakdownCreateResponse create(BreakdownCreateRequest request) {
+        BreakdownRequest breakdownRequest = request.breakdown();
+        BreakdownAssignmentRequest assignmentRequest = request.technicianAssignment();
+        validateBreakdownReferences(breakdownRequest);
+        validateAssignmentReferences(assignmentRequest);
+
         Breakdown breakdown = new Breakdown();
         breakdown.setBreakdownNumber(nextBreakdownNumber());
         breakdown.setCreatedAt(LocalDateTime.now());
-        applyBreakdown(breakdown, request, true);
-        return response(breakdownRepository.saveAndFlush(breakdown));
+        applyBreakdown(breakdown, breakdownRequest, true);
+        breakdown = breakdownRepository.saveAndFlush(breakdown);
+
+        BreakdownAssignmentResponse assignment = createAssignment(
+                breakdown.getBreakdownId(), assignmentRequest);
+        Breakdown savedBreakdown = findBreakdown(breakdown.getBreakdownId());
+        return new BreakdownCreateResponse(response(savedBreakdown), assignment);
     }
 
     @Transactional(readOnly = true)
@@ -82,6 +91,48 @@ public class BreakdownService {
 
     @Transactional(readOnly = true)
     public BreakdownResponse getById(Long breakdownId) {
+        return response(findBreakdown(breakdownId));
+    }
+
+    public BreakdownAssignmentResponse changeTechnician(
+            Long breakdownId, BreakdownTechnicianChangeRequest request) {
+        Breakdown breakdown = findBreakdown(breakdownId);
+        if (breakdown.getStatus() == BreakdownStatus.COMPLETED
+                || breakdown.getStatus() == BreakdownStatus.CANCELLED) {
+            throw new IllegalStateException(
+                    "The technician cannot be changed for a completed or cancelled breakdown");
+        }
+
+        return createAssignment(breakdownId, new BreakdownAssignmentRequest(
+                request.technicianId(), request.assignedBy(),
+                BreakdownAssignmentStatus.CURRENT, request.reason()));
+    }
+
+    public BreakdownResponse cancel(Long breakdownId, BreakdownCancelRequest request) {
+        Breakdown breakdown = findBreakdown(breakdownId);
+        if (breakdown.getStatus() == BreakdownStatus.COMPLETED) {
+            throw new IllegalStateException("A completed breakdown cannot be cancelled");
+        }
+        if (breakdown.getStatus() == BreakdownStatus.CANCELLED) {
+            throw new IllegalStateException("Breakdown is already cancelled");
+        }
+        requireExists(userRepository.existsById(request.cancelledBy()),
+                "Cancelling user", request.cancelledBy());
+
+        LocalDateTime now = LocalDateTime.now();
+        assignmentRepository.findAllByBreakdownIdOrderByAssignedAtDesc(breakdownId).stream()
+                .filter(item -> item.getAssignmentStatus() == BreakdownAssignmentStatus.CURRENT)
+                .forEach(item -> {
+                    item.setAssignmentStatus(BreakdownAssignmentStatus.REASSIGNED);
+                    item.setUnassignedAt(now);
+                    assignmentRepository.save(item);
+                });
+
+        breakdown.setStatus(BreakdownStatus.CANCELLED);
+        breakdown.setCancelledBy(request.cancelledBy());
+        breakdown.setCancelledAt(now);
+        breakdown.setCancelReason(optional(request.cancelReason()));
+        breakdownRepository.saveAndFlush(breakdown);
         return response(findBreakdown(breakdownId));
     }
 
