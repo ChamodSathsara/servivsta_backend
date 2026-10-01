@@ -19,6 +19,8 @@ public interface MachineRepository extends JpaRepository<Machine, Long> {
 
     boolean existsBySerialNumberIgnoreCaseAndMachineIdNot(String serialNumber, Long machineId);
 
+    Optional<Machine> findByMachineReferenceNumberIgnoreCase(String machineReferenceNumber);
+
     @Query(value = "select coalesce(max(cast(substring(machine_reference_number, 2) as unsigned)), 0) " +
             "from machine where machine_reference_number regexp '^Q[0-9]+$'", nativeQuery = true)
     long findMaximumReferenceSequence();
