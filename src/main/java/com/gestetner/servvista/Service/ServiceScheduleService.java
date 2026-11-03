@@ -1,15 +1,25 @@
 package com.gestetner.servvista.Service;
 
 import com.gestetner.servvista.Dto.services.ServiceScheduleResponse;
+import com.gestetner.servvista.Dto.services.ServiceVisitCompleteRequest;
+import com.gestetner.servvista.Dto.services.ServiceVisitMeterReadingResponse;
+import com.gestetner.servvista.Dto.services.ServiceVisitStartRequest;
+import com.gestetner.servvista.Dto.services.ServiceVisitStartResponse;
+import com.gestetner.servvista.Models.Enums.Meters.MeterReadingSource;
 import com.gestetner.servvista.Models.Enums.Services.ServiceScheduleStatus;
 import com.gestetner.servvista.Models.entity.agreements.MachineAgreement;
 import com.gestetner.servvista.Models.entity.machines.Machine;
+import com.gestetner.servvista.Models.entity.meters.MeterReading;
 import com.gestetner.servvista.Models.entity.services.ServiceSchedule;
 import com.gestetner.servvista.Repositories.agreements.MachineAgreementRepository;
 import com.gestetner.servvista.Repositories.installations.InstallationJobRepository;
 import com.gestetner.servvista.Repositories.identity.TechnicianRepository;
+import com.gestetner.servvista.Repositories.identity.UserRepository;
 import com.gestetner.servvista.Repositories.machines.MachineRepository;
+import com.gestetner.servvista.Repositories.meters.MeterCounterTypeRepository;
+import com.gestetner.servvista.Repositories.meters.MeterReadingRepository;
 import com.gestetner.servvista.Repositories.services.ServiceScheduleRepository;
+import com.gestetner.servvista.Repositories.services.SolutionTypeRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,18 +38,30 @@ public class ServiceScheduleService {
     private final MachineRepository machineRepository;
     private final InstallationJobRepository installationJobRepository;
     private final TechnicianRepository technicianRepository;
+    private final MeterCounterTypeRepository meterCounterTypeRepository;
+    private final MeterReadingRepository meterReadingRepository;
+    private final UserRepository userRepository;
+    private final SolutionTypeRepository solutionTypeRepository;
 
     public ServiceScheduleService(
             ServiceScheduleRepository scheduleRepository,
             MachineAgreementRepository agreementRepository,
             MachineRepository machineRepository,
             InstallationJobRepository installationJobRepository,
-            TechnicianRepository technicianRepository) {
+            TechnicianRepository technicianRepository,
+            MeterCounterTypeRepository meterCounterTypeRepository,
+            MeterReadingRepository meterReadingRepository,
+            UserRepository userRepository,
+            SolutionTypeRepository solutionTypeRepository) {
         this.scheduleRepository = scheduleRepository;
         this.agreementRepository = agreementRepository;
         this.machineRepository = machineRepository;
         this.installationJobRepository = installationJobRepository;
         this.technicianRepository = technicianRepository;
+        this.meterCounterTypeRepository = meterCounterTypeRepository;
+        this.meterReadingRepository = meterReadingRepository;
+        this.userRepository = userRepository;
+        this.solutionTypeRepository = solutionTypeRepository;
     }
 
     public List<ServiceScheduleResponse> generateForSubmission(
@@ -124,6 +146,83 @@ public class ServiceScheduleService {
         }
         return scheduleRepository.findAllByMachineIdWithDetails(machineId)
                 .stream().map(this::response).toList();
+    }
+
+    public ServiceVisitStartResponse start(Long scheduleId, ServiceVisitStartRequest request) {
+        ServiceSchedule schedule = findSchedule(scheduleId);
+        if (schedule.getStatus() != ServiceScheduleStatus.SCHEDULED
+                && schedule.getStatus() != ServiceScheduleStatus.DUE) {
+            throw new IllegalStateException(
+                    "Only a scheduled or due service visit can be started");
+        }
+        requireExists(meterCounterTypeRepository.existsById(request.meterCounterTypeId()),
+                "Meter counter type", request.meterCounterTypeId());
+        requireExists(userRepository.existsById(request.capturedByUserId()),
+                "Capturing user", request.capturedByUserId());
+
+        LocalDateTime now = LocalDateTime.now();
+        schedule.setStatus(ServiceScheduleStatus.STARTED);
+        schedule.setStartNote(optional(request.startNote()));
+        schedule.setStartedAt(now);
+        schedule.setActualVisitDate(now.toLocalDate());
+        scheduleRepository.saveAndFlush(schedule);
+
+        MeterReading reading = new MeterReading();
+        reading.setMachineId(schedule.getMachineId());
+        reading.setMeterCounterTypeId(request.meterCounterTypeId());
+        reading.setReadingValue(request.meterReading());
+        reading.setReadingDatetime(now);
+        reading.setSourceCode(MeterReadingSource.SERVICE);
+        reading.setServiceScheduleId(scheduleId);
+        reading.setCapturedByUserId(request.capturedByUserId());
+        reading.setNote(optional(request.meterReadingNote()));
+        reading.setCreatedAt(now);
+        reading = meterReadingRepository.saveAndFlush(reading);
+
+        return new ServiceVisitStartResponse(
+                response(findSchedule(scheduleId)), meterReadingResponse(reading));
+    }
+
+    public ServiceScheduleResponse complete(
+            Long scheduleId, ServiceVisitCompleteRequest request) {
+        ServiceSchedule schedule = findSchedule(scheduleId);
+        if (schedule.getStatus() != ServiceScheduleStatus.STARTED) {
+            throw new IllegalStateException("Only a started service visit can be completed");
+        }
+        requireExists(solutionTypeRepository.existsById(request.solutionTypeId()),
+                "Solution type", request.solutionTypeId());
+
+        schedule.setStatus(ServiceScheduleStatus.COMPLETED);
+        schedule.setSolutionTypeId(request.solutionTypeId());
+        schedule.setSolutionNote(optional(request.solutionNote()));
+        schedule.setCompletedAt(LocalDateTime.now());
+        scheduleRepository.saveAndFlush(schedule);
+        return response(findSchedule(scheduleId));
+    }
+
+    private ServiceSchedule findSchedule(Long scheduleId) {
+        return scheduleRepository.findByIdWithDetails(scheduleId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Service schedule " + scheduleId + " was not found"));
+    }
+
+    private ServiceVisitMeterReadingResponse meterReadingResponse(MeterReading reading) {
+        return new ServiceVisitMeterReadingResponse(
+                reading.getMeterReadingId(), reading.getMachineId(),
+                reading.getMeterCounterTypeId(), reading.getReadingValue(),
+                reading.getReadingDatetime(), reading.getSourceCode(),
+                reading.getServiceScheduleId(), reading.getCapturedByUserId(),
+                reading.getNote(), reading.getCreatedAt());
+    }
+
+    private void requireExists(boolean exists, String name, Long id) {
+        if (!exists) {
+            throw new EntityNotFoundException(name + " " + id + " was not found");
+        }
+    }
+
+    private String optional(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private ServiceScheduleResponse response(ServiceSchedule schedule) {
