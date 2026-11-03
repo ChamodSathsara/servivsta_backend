@@ -1,0 +1,123 @@
+package com.gestetner.servvista.Controllers;
+
+import com.gestetner.servvista.Dto.breakdowns.BreakdownCompleteRequest;
+import com.gestetner.servvista.Dto.breakdowns.BreakdownResponse;
+import com.gestetner.servvista.Dto.breakdowns.BreakdownStartRequest;
+import com.gestetner.servvista.Dto.breakdowns.BreakdownStartResponse;
+import com.gestetner.servvista.Dto.estimates.EstimateRequest;
+import com.gestetner.servvista.Dto.estimates.EstimateResponse;
+import com.gestetner.servvista.Dto.installations.InstallationJobResponse;
+import com.gestetner.servvista.Dto.services.ServiceScheduleResponse;
+import com.gestetner.servvista.Dto.services.ServiceVisitCompleteRequest;
+import com.gestetner.servvista.Dto.services.ServiceVisitStartRequest;
+import com.gestetner.servvista.Dto.services.ServiceVisitStartResponse;
+import com.gestetner.servvista.Dto.technician.ChangeOwnPasswordRequest;
+import com.gestetner.servvista.Dto.technician.TechnicianInstallationStatusRequest;
+import com.gestetner.servvista.Service.TechnicianMobileService;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/technician/me")
+@PreAuthorize("hasRole('TECHNICIAN')")
+public class TechnicianMobileController {
+    private final TechnicianMobileService service;
+
+    public TechnicianMobileController(TechnicianMobileService service) {
+        this.service = service;
+    }
+
+    @GetMapping("/installation-jobs")
+    public List<InstallationJobResponse> installations(@AuthenticationPrincipal Jwt jwt) {
+        return service.installations(userId(jwt));
+    }
+
+    @PatchMapping("/installation-jobs/{jobId}/status")
+    public InstallationJobResponse updateInstallationStatus(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long jobId,
+            @Valid @RequestBody TechnicianInstallationStatusRequest request) {
+        return service.updateInstallationStatus(
+                userId(jwt), jobId, request.status(), request.note());
+    }
+
+    @PostMapping("/installation-jobs/{jobId}/complete")
+    public InstallationJobResponse completeInstallation(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long jobId,
+            @RequestBody(required = false) TechnicianInstallationStatusRequest request) {
+        return service.completeInstallation(
+                userId(jwt), jobId, request == null ? null : request.note());
+    }
+
+    @GetMapping("/breakdowns")
+    public List<BreakdownResponse> breakdowns(@AuthenticationPrincipal Jwt jwt) {
+        return service.breakdowns(userId(jwt));
+    }
+
+    @PatchMapping("/breakdowns/{breakdownId}/start")
+    public BreakdownStartResponse startBreakdown(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long breakdownId,
+            @Valid @RequestBody BreakdownStartRequest request) {
+        return service.startBreakdown(userId(jwt), breakdownId, request);
+    }
+
+    @PatchMapping("/breakdowns/{breakdownId}/complete")
+    public BreakdownResponse completeBreakdown(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long breakdownId,
+            @Valid @RequestBody BreakdownCompleteRequest request) {
+        return service.completeBreakdown(userId(jwt), breakdownId, request);
+    }
+
+    @GetMapping("/service-schedules")
+    public List<ServiceScheduleResponse> schedules(@AuthenticationPrincipal Jwt jwt) {
+        return service.schedules(userId(jwt));
+    }
+
+    @PatchMapping("/service-schedules/{scheduleId}/start")
+    public ServiceVisitStartResponse startSchedule(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long scheduleId,
+            @Valid @RequestBody ServiceVisitStartRequest request) {
+        return service.startSchedule(userId(jwt), scheduleId, request);
+    }
+
+    @PatchMapping("/service-schedules/{scheduleId}/complete")
+    public ServiceScheduleResponse completeSchedule(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long scheduleId,
+            @Valid @RequestBody ServiceVisitCompleteRequest request) {
+        return service.completeSchedule(userId(jwt), scheduleId, request);
+    }
+
+    @PostMapping("/estimates")
+    public EstimateResponse createEstimate(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody EstimateRequest request) {
+        return service.createEstimate(userId(jwt), request);
+    }
+
+    @PatchMapping("/password")
+    public ResponseEntity<Void> changePassword(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody ChangeOwnPasswordRequest request) {
+        service.changePassword(userId(jwt), request);
+        return ResponseEntity.noContent().build();
+    }
+
+    private Long userId(Jwt jwt) {
+        Object claim = jwt.getClaim("userId");
+        if (!(claim instanceof Number number)) {
+            throw new IllegalStateException("The access token does not contain a valid userId");
+        }
+        return number.longValue();
+    }
+}
