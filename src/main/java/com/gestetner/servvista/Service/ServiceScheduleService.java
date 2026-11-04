@@ -8,10 +8,12 @@ import com.gestetner.servvista.Dto.services.ServiceVisitStartResponse;
 import com.gestetner.servvista.Models.Enums.Meters.MeterReadingSource;
 import com.gestetner.servvista.Models.Enums.Services.ServiceScheduleStatus;
 import com.gestetner.servvista.Models.entity.agreements.MachineAgreement;
+import com.gestetner.servvista.Models.entity.customers.CustomerSite;
 import com.gestetner.servvista.Models.entity.machines.Machine;
 import com.gestetner.servvista.Models.entity.meters.MeterReading;
 import com.gestetner.servvista.Models.entity.services.ServiceSchedule;
 import com.gestetner.servvista.Repositories.agreements.MachineAgreementRepository;
+import com.gestetner.servvista.Repositories.customers.CustomerSiteRepository;
 import com.gestetner.servvista.Repositories.installations.InstallationJobRepository;
 import com.gestetner.servvista.Repositories.identity.TechnicianRepository;
 import com.gestetner.servvista.Repositories.identity.UserRepository;
@@ -42,6 +44,7 @@ public class ServiceScheduleService {
     private final MeterReadingRepository meterReadingRepository;
     private final UserRepository userRepository;
     private final SolutionTypeRepository solutionTypeRepository;
+    private final CustomerSiteRepository siteRepository;
 
     public ServiceScheduleService(
             ServiceScheduleRepository scheduleRepository,
@@ -52,7 +55,8 @@ public class ServiceScheduleService {
             MeterCounterTypeRepository meterCounterTypeRepository,
             MeterReadingRepository meterReadingRepository,
             UserRepository userRepository,
-            SolutionTypeRepository solutionTypeRepository) {
+            SolutionTypeRepository solutionTypeRepository,
+            CustomerSiteRepository siteRepository) {
         this.scheduleRepository = scheduleRepository;
         this.agreementRepository = agreementRepository;
         this.machineRepository = machineRepository;
@@ -62,6 +66,7 @@ public class ServiceScheduleService {
         this.meterReadingRepository = meterReadingRepository;
         this.userRepository = userRepository;
         this.solutionTypeRepository = solutionTypeRepository;
+        this.siteRepository = siteRepository;
     }
 
     public List<ServiceScheduleResponse> generateForSubmission(
@@ -236,6 +241,18 @@ public class ServiceScheduleService {
                 : machineRepository.findById(schedule.getMachineId())
                         .orElseThrow(() -> new EntityNotFoundException(
                                 "Machine " + schedule.getMachineId() + " was not found"));
+        CustomerSite site = machine.getCurrentCustomerSiteId() == null
+                ? null
+                : machine.getCurrentCustomerSite() != null
+                        ? machine.getCurrentCustomerSite()
+                        : siteRepository.findById(machine.getCurrentCustomerSiteId())
+                                .orElseThrow(() -> new EntityNotFoundException(
+                                        "Customer site " + machine.getCurrentCustomerSiteId()
+                                                + " was not found"));
+        String siteAddress = site == null ? null : java.util.stream.Stream.of(
+                        site.getAddressLine1(), site.getAddressLine2(), site.getAddressLine3())
+                .filter(value -> value != null && !value.isBlank())
+                .collect(java.util.stream.Collectors.joining(", "));
         String technicianName = schedule.getAssignedTechnicianId() == null
                 ? null
                 : schedule.getAssignedTechnician() != null
@@ -249,6 +266,9 @@ public class ServiceScheduleService {
                 schedule.getServiceScheduleId(), schedule.getAgreementId(),
                 agreement.getAgreementNumber(), schedule.getMachineId(),
                 machine.getMachineReferenceNumber(),
+                site == null ? null : site.getSiteName(), siteAddress,
+                site == null ? null : site.getLatitude(),
+                site == null ? null : site.getLongitude(),
                 schedule.getAgreementYearNumber(), schedule.getVisitNumber(),
                 schedule.getExpectedVisitDate(), schedule.getScheduledDate(),
                 schedule.getActualVisitDate(), schedule.getStatus(),

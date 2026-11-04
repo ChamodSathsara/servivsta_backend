@@ -13,6 +13,11 @@ import com.gestetner.servvista.Dto.services.ServiceVisitStartRequest;
 import com.gestetner.servvista.Dto.services.ServiceVisitStartResponse;
 import com.gestetner.servvista.Dto.technician.ChangeOwnPasswordRequest;
 import com.gestetner.servvista.Dto.technician.TechnicianInstallationStatusRequest;
+import com.gestetner.servvista.Dto.reference.MeterCounterTypeResponse;
+import com.gestetner.servvista.Dto.reference.SolutionTypeResponse;
+import com.gestetner.servvista.Dto.meters.MeterReadingResponse;
+import com.gestetner.servvista.Service.MeterCounterTypeService;
+import com.gestetner.servvista.Service.SolutionTypeService;
 import com.gestetner.servvista.Service.TechnicianMobileService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -34,14 +39,27 @@ import java.util.List;
 @PreAuthorize("hasRole('TECHNICIAN')")
 public class TechnicianMobileController {
     private final TechnicianMobileService service;
+    private final MeterCounterTypeService meterCounterTypeService;
+    private final SolutionTypeService solutionTypeService;
 
-    public TechnicianMobileController(TechnicianMobileService service) {
+    public TechnicianMobileController(
+            TechnicianMobileService service,
+            MeterCounterTypeService meterCounterTypeService,
+            SolutionTypeService solutionTypeService) {
         this.service = service;
+        this.meterCounterTypeService = meterCounterTypeService;
+        this.solutionTypeService = solutionTypeService;
     }
 
     @GetMapping("/installation-jobs")
     public List<InstallationJobResponse> installations(@AuthenticationPrincipal Jwt jwt) {
         return service.installations(userId(jwt));
+    }
+
+    @GetMapping("/installation-jobs/{jobId}")
+    public InstallationJobResponse installation(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long jobId) {
+        return service.installation(userId(jwt), jobId);
     }
 
     @PatchMapping("/installation-jobs/{jobId}/status")
@@ -65,6 +83,12 @@ public class TechnicianMobileController {
         return service.breakdowns(userId(jwt));
     }
 
+    @GetMapping("/breakdowns/{breakdownId}")
+    public BreakdownResponse breakdown(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long breakdownId) {
+        return service.breakdown(userId(jwt), breakdownId);
+    }
+
     @PatchMapping("/breakdowns/{breakdownId}/start")
     public BreakdownStartResponse startBreakdown(
             @AuthenticationPrincipal Jwt jwt, @PathVariable Long breakdownId,
@@ -82,6 +106,12 @@ public class TechnicianMobileController {
     @GetMapping("/service-schedules")
     public List<ServiceScheduleResponse> schedules(@AuthenticationPrincipal Jwt jwt) {
         return service.schedules(userId(jwt));
+    }
+
+    @GetMapping("/service-schedules/{scheduleId}")
+    public ServiceScheduleResponse schedule(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long scheduleId) {
+        return service.schedule(userId(jwt), scheduleId);
     }
 
     @PatchMapping("/service-schedules/{scheduleId}/start")
@@ -111,6 +141,23 @@ public class TechnicianMobileController {
             @Valid @RequestBody ChangeOwnPasswordRequest request) {
         service.changePassword(userId(jwt), request);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/meter-counter-types")
+    public List<MeterCounterTypeResponse> meterCounterTypes() {
+        return meterCounterTypeService.getAll();
+    }
+
+    @GetMapping("/solution-types")
+    public List<SolutionTypeResponse> solutionTypes() {
+        return solutionTypeService.getAll();
+    }
+
+    @GetMapping("/meter-readings/machine/{machineReferenceNumber}")
+    public List<MeterReadingResponse> meterReadings(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable String machineReferenceNumber) {
+        return service.meterReadings(userId(jwt), machineReferenceNumber);
     }
 
     private Long userId(Jwt jwt) {

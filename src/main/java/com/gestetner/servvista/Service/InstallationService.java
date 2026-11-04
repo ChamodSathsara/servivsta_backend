@@ -503,14 +503,14 @@ public class InstallationService {
                 : customerRepository.findById(job.getCustomerId())
                         .orElseThrow(() -> notFound("Customer", job.getCustomerId()))
                         .getCustomerName();
-        String siteName = job.getCustomerSiteId() == null
+        CustomerSite site = job.getCustomerSiteId() == null
                 ? null
                 : job.getCustomerSite() != null
-                        ? job.getCustomerSite().getSiteName()
+                        ? job.getCustomerSite()
                         : siteRepository.findById(job.getCustomerSiteId())
                                 .orElseThrow(() -> notFound(
-                                        "Customer site", job.getCustomerSiteId()))
-                                .getSiteName();
+                                        "Customer site", job.getCustomerSiteId()));
+        String siteName = site == null ? null : site.getSiteName();
         String invoiceNumber = job.getMachineInvoiceId() == null
                 ? null
                 : job.getMachineInvoice() != null
@@ -535,6 +535,9 @@ public class InstallationService {
                 customerName,
                 job.getCustomerSiteId(),
                 siteName,
+                site == null ? null : siteAddress(site),
+                site == null ? null : site.getLatitude(),
+                site == null ? null : site.getLongitude(),
                 job.getMachineInvoiceId(),
                 invoiceNumber,
                 job.getDealerId(),
@@ -546,6 +549,13 @@ public class InstallationService {
                 job.getCreatedBy(),
                 job.getCreatedAt(),
                 history);
+    }
+
+    private String siteAddress(CustomerSite site) {
+        return java.util.stream.Stream.of(
+                        site.getAddressLine1(), site.getAddressLine2(), site.getAddressLine3())
+                .filter(value -> value != null && !value.isBlank())
+                .collect(java.util.stream.Collectors.joining(", "));
     }
 
     private InstallationStatusHistoryResponse historyResponse(

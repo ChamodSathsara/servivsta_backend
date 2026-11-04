@@ -447,14 +447,19 @@ public class BreakdownService {
                 : machineRepository.findById(b.getMachineId())
                         .map(machine -> machine.getMachineReferenceNumber())
                         .orElseThrow(() -> notFound("Machine", b.getMachineId()));
-        String siteName = b.getCustomerSite() != null
-                ? b.getCustomerSite().getSiteName()
+        var site = b.getCustomerSite() != null
+                ? b.getCustomerSite()
                 : siteRepository.findById(b.getCustomerSiteId())
-                        .map(site -> site.getSiteName())
                         .orElseThrow(() -> notFound("Customer site", b.getCustomerSiteId()));
+        String siteName = site.getSiteName();
+        String siteAddress = java.util.stream.Stream.of(
+                        site.getAddressLine1(), site.getAddressLine2(), site.getAddressLine3())
+                .filter(value -> value != null && !value.isBlank())
+                .collect(java.util.stream.Collectors.joining(", "));
 
         return new BreakdownResponse(b.getBreakdownId(), b.getBreakdownNumber(), b.getMachineId(),
-                machineReferenceNumber, b.getCustomerSiteId(), siteName, b.getReportedByType(),
+                machineReferenceNumber, b.getCustomerSiteId(), siteName, siteAddress,
+                site.getLatitude(), site.getLongitude(), b.getReportedByType(),
                 b.getReportedByPortalAccountId(), b.getReportedByUserId(), b.getReportedNote(),
                 b.getInformedSolutionTypeId(), b.getStatus(), b.getApprovedBy(), b.getApprovedAt(),
                 b.getStartNote(), b.getStartedAt(), b.getActualSolutionTypeId(), b.getSolutionNote(),

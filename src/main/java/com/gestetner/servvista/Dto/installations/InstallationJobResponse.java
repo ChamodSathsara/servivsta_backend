@@ -6,6 +6,7 @@ import com.gestetner.servvista.Models.Enums.Organization.Division;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 
 public record InstallationJobResponse(
@@ -17,6 +18,9 @@ public record InstallationJobResponse(
         String customerName,
         Long customerSiteId,
         String siteName,
+        String siteAddress,
+        BigDecimal latitude,
+        BigDecimal longitude,
         Long machineInvoiceId,
         String invoiceNumber,
         Long dealerId,

@@ -4,6 +4,7 @@ import com.gestetner.servvista.Models.Enums.Breakdowns.BreakdownReportedByType;
 import com.gestetner.servvista.Models.Enums.Breakdowns.BreakdownStatus;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 public record BreakdownResponse(
         Long breakdownId,
@@ -12,6 +13,9 @@ public record BreakdownResponse(
         String machineReferenceNumber,
         Long customerSiteId,
         String siteName,
+        String siteAddress,
+        BigDecimal latitude,
+        BigDecimal longitude,
         BreakdownReportedByType reportedByType,
         Long reportedByPortalAccountId,
         Long reportedByUserId,

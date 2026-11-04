@@ -13,14 +13,17 @@ import com.gestetner.servvista.Dto.services.ServiceScheduleResponse;
 import com.gestetner.servvista.Dto.services.ServiceVisitCompleteRequest;
 import com.gestetner.servvista.Dto.services.ServiceVisitStartRequest;
 import com.gestetner.servvista.Dto.services.ServiceVisitStartResponse;
+import com.gestetner.servvista.Dto.meters.MeterReadingResponse;
 import com.gestetner.servvista.Dto.technician.ChangeOwnPasswordRequest;
 import com.gestetner.servvista.Models.Enums.Breakdowns.BreakdownAssignmentStatus;
 import com.gestetner.servvista.Models.Enums.Installations.InstallationJobStatus;
 import com.gestetner.servvista.Models.entity.identity.Technician;
 import com.gestetner.servvista.Models.entity.identity.User;
+import com.gestetner.servvista.Models.entity.machines.Machine;
 import com.gestetner.servvista.Repositories.breakdowns.BreakdownTechnicianAssignmentRepository;
 import com.gestetner.servvista.Repositories.identity.TechnicianRepository;
 import com.gestetner.servvista.Repositories.identity.UserRepository;
+import com.gestetner.servvista.Repositories.machines.MachineRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -40,6 +43,8 @@ public class TechnicianMobileService {
     private final BreakdownService breakdownService;
     private final ServiceScheduleService scheduleService;
     private final EstimateService estimateService;
+    private final MeterReadingService meterReadingService;
+    private final MachineRepository machineRepository;
     private final PasswordEncoder passwordEncoder;
 
     public TechnicianMobileService(
@@ -50,6 +55,8 @@ public class TechnicianMobileService {
             BreakdownService breakdownService,
             ServiceScheduleService scheduleService,
             EstimateService estimateService,
+            MeterReadingService meterReadingService,
+            MachineRepository machineRepository,
             PasswordEncoder passwordEncoder) {
         this.technicianRepository = technicianRepository;
         this.userRepository = userRepository;
@@ -58,6 +65,8 @@ public class TechnicianMobileService {
         this.breakdownService = breakdownService;
         this.scheduleService = scheduleService;
         this.estimateService = estimateService;
+        this.meterReadingService = meterReadingService;
+        this.machineRepository = machineRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -67,6 +76,12 @@ public class TechnicianMobileService {
         return installationService.getAllJobs().stream()
                 .filter(job -> technicianId.equals(job.assignedTechnicianId()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public InstallationJobResponse installation(Long userId, Long jobId) {
+        ensureInstallationOwner(userId, jobId);
+        return installationService.getJobById(jobId);
     }
 
     public InstallationJobResponse updateInstallationStatus(
@@ -95,6 +110,12 @@ public class TechnicianMobileService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public BreakdownResponse breakdown(Long userId, Long breakdownId) {
+        ensureBreakdownOwner(userId, breakdownId);
+        return breakdownService.getById(breakdownId);
+    }
+
     public BreakdownStartResponse startBreakdown(
             Long userId, Long breakdownId, BreakdownStartRequest request) {
         ensureBreakdownOwner(userId, breakdownId);
@@ -115,6 +136,12 @@ public class TechnicianMobileService {
         return scheduleService.getAll().stream()
                 .filter(item -> technicianId.equals(item.assignedTechnicianId()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ServiceScheduleResponse schedule(Long userId, Long scheduleId) {
+        ensureScheduleOwner(userId, scheduleId);
+        return scheduleService.getById(scheduleId);
     }
 
     public ServiceVisitStartResponse startSchedule(
@@ -159,6 +186,22 @@ public class TechnicianMobileService {
         user.setUpdatedAt(LocalDateTime.now());
         user.setUpdatedBy(userId);
         userRepository.saveAndFlush(user);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MeterReadingResponse> meterReadings(Long userId, String machineReferenceNumber) {
+        Long technicianId = technician(userId).getTechnicianId();
+        Machine machine = machineRepository
+                .findByMachineReferenceNumberIgnoreCase(machineReferenceNumber.trim())
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Machine " + machineReferenceNumber.trim() + " was not found"));
+        boolean assigned = technicianId.equals(machine.getCurrentMainTechnicianId())
+                || technicianId.equals(machine.getCurrentServiceTechnicianId());
+        if (!assigned) {
+            throw new AccessDeniedException("This machine is not assigned to you");
+        }
+        return meterReadingService.getByMachineReferenceNumber(
+                machine.getMachineReferenceNumber());
     }
 
     private Technician technician(Long userId) {
