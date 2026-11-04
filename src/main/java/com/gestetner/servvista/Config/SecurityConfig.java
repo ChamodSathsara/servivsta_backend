@@ -11,6 +11,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
+import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -60,8 +63,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(PUBLIC_ROUTES).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/users").hasRole("ADMIN")
-                        .requestMatchers("/api/roles/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/users")
+                                .hasAnyRole("ADMIN", "COORDINATOR")
+                        .requestMatchers("/api/roles/**")
+                                .hasAnyRole("ADMIN", "COORDINATOR")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth2 -> oauth2
@@ -74,6 +79,22 @@ public class SecurityConfig {
                                         "Forbidden", "You do not have permission to access this resource")));
 
         return http.build();
+    }
+
+    /**
+     * Coordinators have the complete administrative permission set. Keeping this
+     * relationship here makes it apply consistently to every @PreAuthorize
+     * expression that currently requires ADMIN.
+     */
+    @Bean
+    public static MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
+        RoleHierarchyImpl roleHierarchy =
+                RoleHierarchyImpl.fromHierarchy("ROLE_COORDINATOR > ROLE_ADMIN");
+
+        DefaultMethodSecurityExpressionHandler expressionHandler =
+                new DefaultMethodSecurityExpressionHandler();
+        expressionHandler.setRoleHierarchy(roleHierarchy);
+        return expressionHandler;
     }
 
     @Bean
