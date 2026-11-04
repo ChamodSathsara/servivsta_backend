@@ -57,6 +57,7 @@ public class InstallationService {
     private final RepRepository repRepository;
     private final UserRepository userRepository;
     private final ServiceScheduleService serviceScheduleService;
+    private final JobPartyDetailsService partyDetailsService;
 
     public InstallationService(
             InstallationJobRepository jobRepository,
@@ -72,7 +73,8 @@ public class InstallationService {
             DealerRepository dealerRepository,
             RepRepository repRepository,
             UserRepository userRepository,
-            ServiceScheduleService serviceScheduleService) {
+            ServiceScheduleService serviceScheduleService,
+            JobPartyDetailsService partyDetailsService) {
         this.jobRepository = jobRepository;
         this.submissionRepository = submissionRepository;
         this.historyRepository = historyRepository;
@@ -87,6 +89,7 @@ public class InstallationService {
         this.repRepository = repRepository;
         this.userRepository = userRepository;
         this.serviceScheduleService = serviceScheduleService;
+        this.partyDetailsService = partyDetailsService;
     }
 
     public InstallationJobResponse createJob(InstallationJobRequest request) {
@@ -548,7 +551,8 @@ public class InstallationService {
                 job.getStatus(),
                 job.getCreatedBy(),
                 job.getCreatedAt(),
-                history);
+                history,
+                partyDetailsService.forSite(job.getCustomerSiteId()));
     }
 
     private String siteAddress(CustomerSite site) {

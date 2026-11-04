@@ -16,6 +16,8 @@ import com.gestetner.servvista.Dto.services.ServiceVisitStartResponse;
 import com.gestetner.servvista.Dto.meters.MeterReadingResponse;
 import com.gestetner.servvista.Dto.technician.ChangeOwnPasswordRequest;
 import com.gestetner.servvista.Dto.technician.TechnicianOpenWorkResponse;
+import com.gestetner.servvista.Dto.technician.PerformanceMetricResponse;
+import com.gestetner.servvista.Dto.technician.TechnicianYtdPerformanceResponse;
 import com.gestetner.servvista.Models.Enums.Breakdowns.BreakdownAssignmentStatus;
 import com.gestetner.servvista.Models.Enums.Breakdowns.BreakdownStatus;
 import com.gestetner.servvista.Models.Enums.Installations.InstallationJobStatus;
@@ -193,6 +195,37 @@ public class TechnicianMobileService {
                 .toList();
         return new TechnicianOpenWorkResponse(
                 installationJobs, breakdownJobs, serviceVisits);
+    }
+
+    @Transactional(readOnly = true)
+    public TechnicianYtdPerformanceResponse ytdPerformance(Long userId) {
+        int year = LocalDate.now().getYear();
+        List<InstallationJobResponse> installationJobs = installations(userId).stream()
+                .filter(item -> item.createdAt() != null && item.createdAt().getYear() == year)
+                .toList();
+        List<BreakdownResponse> breakdownJobs = breakdowns(userId).stream()
+                .filter(item -> item.createdAt() != null && item.createdAt().getYear() == year)
+                .toList();
+        List<ServiceScheduleResponse> serviceVisits = schedules(userId).stream()
+                .filter(item -> item.expectedVisitDate() != null && item.expectedVisitDate().getYear() == year)
+                .toList();
+        return new TechnicianYtdPerformanceResponse(year,
+                metric(installationJobs.size(),
+                        installationJobs.stream().filter(item -> item.status() == InstallationJobStatus.CANCELLED).count(),
+                        installationJobs.stream().filter(item -> item.status() == InstallationJobStatus.COMPLETED).count()),
+                metric(breakdownJobs.size(),
+                        breakdownJobs.stream().filter(item -> item.status() == BreakdownStatus.CANCELLED).count(),
+                        breakdownJobs.stream().filter(item -> item.status() == BreakdownStatus.COMPLETED).count()),
+                metric(serviceVisits.size(),
+                        serviceVisits.stream().filter(item -> item.status() == ServiceScheduleStatus.CANCELLED).count(),
+                        serviceVisits.stream().filter(item -> item.status() == ServiceScheduleStatus.COMPLETED).count()));
+    }
+
+    private PerformanceMetricResponse metric(long all, long cancelled, long completed) {
+        long eligible = Math.max(0, all - cancelled);
+        double percentage = eligible == 0 ? 0.0
+                : Math.round((completed * 10000.0) / eligible) / 100.0;
+        return new PerformanceMetricResponse(all, cancelled, eligible, completed, percentage);
     }
 
     @Transactional(readOnly = true)

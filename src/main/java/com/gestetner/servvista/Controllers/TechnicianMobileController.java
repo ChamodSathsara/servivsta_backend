@@ -14,6 +14,7 @@ import com.gestetner.servvista.Dto.services.ServiceVisitStartResponse;
 import com.gestetner.servvista.Dto.technician.ChangeOwnPasswordRequest;
 import com.gestetner.servvista.Dto.technician.TechnicianInstallationStatusRequest;
 import com.gestetner.servvista.Dto.technician.TechnicianOpenWorkResponse;
+import com.gestetner.servvista.Dto.technician.TechnicianYtdPerformanceResponse;
 import com.gestetner.servvista.Dto.reference.MeterCounterTypeResponse;
 import com.gestetner.servvista.Dto.reference.SolutionTypeResponse;
 import com.gestetner.servvista.Dto.meters.MeterReadingResponse;
@@ -133,6 +134,11 @@ public class TechnicianMobileController {
     @GetMapping("/open-work")
     public TechnicianOpenWorkResponse openWork(@AuthenticationPrincipal Jwt jwt) {
         return service.openWork(userId(jwt));
+    }
+
+    @GetMapping("/performance/ytd")
+    public TechnicianYtdPerformanceResponse ytdPerformance(@AuthenticationPrincipal Jwt jwt) {
+        return service.ytdPerformance(userId(jwt));
     }
 
     @GetMapping("/service-schedules/{scheduleId}")

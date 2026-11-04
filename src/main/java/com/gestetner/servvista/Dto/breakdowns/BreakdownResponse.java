@@ -5,6 +5,7 @@ import com.gestetner.servvista.Models.Enums.Breakdowns.BreakdownStatus;
 
 import java.time.LocalDateTime;
 import java.math.BigDecimal;
+import com.gestetner.servvista.Dto.technician.JobPartyDetailsResponse;
 
 public record BreakdownResponse(
         Long breakdownId,
@@ -34,6 +35,7 @@ public record BreakdownResponse(
         String cancelReason,
         LocalDateTime createdAt,
         LocalDateTime expectedCompletionAt,
-        String contactEmail
+        String contactEmail,
+        JobPartyDetailsResponse partyDetails
 ) {
 }

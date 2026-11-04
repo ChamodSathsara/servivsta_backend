@@ -45,6 +45,7 @@ public class ServiceScheduleService {
     private final UserRepository userRepository;
     private final SolutionTypeRepository solutionTypeRepository;
     private final CustomerSiteRepository siteRepository;
+    private final JobPartyDetailsService partyDetailsService;
 
     public ServiceScheduleService(
             ServiceScheduleRepository scheduleRepository,
@@ -56,7 +57,8 @@ public class ServiceScheduleService {
             MeterReadingRepository meterReadingRepository,
             UserRepository userRepository,
             SolutionTypeRepository solutionTypeRepository,
-            CustomerSiteRepository siteRepository) {
+            CustomerSiteRepository siteRepository,
+            JobPartyDetailsService partyDetailsService) {
         this.scheduleRepository = scheduleRepository;
         this.agreementRepository = agreementRepository;
         this.machineRepository = machineRepository;
@@ -67,6 +69,7 @@ public class ServiceScheduleService {
         this.userRepository = userRepository;
         this.solutionTypeRepository = solutionTypeRepository;
         this.siteRepository = siteRepository;
+        this.partyDetailsService = partyDetailsService;
     }
 
     public List<ServiceScheduleResponse> generateForSubmission(
@@ -274,6 +277,7 @@ public class ServiceScheduleService {
                 schedule.getActualVisitDate(), schedule.getStatus(),
                 schedule.getAssignedTechnicianId(), technicianName,
                 schedule.getStartNote(), schedule.getStartedAt(), schedule.getCompletedAt(),
-                schedule.getSolutionTypeId(), schedule.getSolutionNote(), schedule.getCreatedAt());
+                schedule.getSolutionTypeId(), schedule.getSolutionNote(), schedule.getCreatedAt(),
+                partyDetailsService.forSite(machine.getCurrentCustomerSiteId()));
     }
 }

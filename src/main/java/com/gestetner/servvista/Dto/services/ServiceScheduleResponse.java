@@ -5,6 +5,7 @@ import com.gestetner.servvista.Models.Enums.Services.ServiceScheduleStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.math.BigDecimal;
+import com.gestetner.servvista.Dto.technician.JobPartyDetailsResponse;
 
 public record ServiceScheduleResponse(
         Long serviceScheduleId,
@@ -29,6 +30,7 @@ public record ServiceScheduleResponse(
         LocalDateTime completedAt,
         Long solutionTypeId,
         String solutionNote,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        JobPartyDetailsResponse partyDetails
 ) {
 }

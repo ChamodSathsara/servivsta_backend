@@ -7,6 +7,7 @@ import com.gestetner.servvista.Models.Enums.Organization.Division;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.math.BigDecimal;
+import com.gestetner.servvista.Dto.technician.JobPartyDetailsResponse;
 import java.util.List;
 
 public record InstallationJobResponse(
@@ -31,6 +32,7 @@ public record InstallationJobResponse(
         InstallationJobStatus status,
         Long createdBy,
         LocalDateTime createdAt,
-        List<InstallationStatusHistoryResponse> statusHistory
+        List<InstallationStatusHistoryResponse> statusHistory,
+        JobPartyDetailsResponse partyDetails
 ) {
 }

@@ -48,6 +48,7 @@ public class BreakdownService {
     private final SolutionTypeRepository solutionTypeRepository;
     private final MeterCounterTypeRepository meterCounterTypeRepository;
     private final MeterReadingRepository meterReadingRepository;
+    private final JobPartyDetailsService partyDetailsService;
 
     public BreakdownService(
             BreakdownRepository breakdownRepository,
@@ -61,7 +62,8 @@ public class BreakdownService {
             TechnicianRepository technicianRepository,
             SolutionTypeRepository solutionTypeRepository,
             MeterCounterTypeRepository meterCounterTypeRepository,
-            MeterReadingRepository meterReadingRepository) {
+            MeterReadingRepository meterReadingRepository,
+            JobPartyDetailsService partyDetailsService) {
         this.breakdownRepository = breakdownRepository;
         this.assignmentRepository = assignmentRepository;
         this.recallRepository = recallRepository;
@@ -74,6 +76,7 @@ public class BreakdownService {
         this.solutionTypeRepository = solutionTypeRepository;
         this.meterCounterTypeRepository = meterCounterTypeRepository;
         this.meterReadingRepository = meterReadingRepository;
+        this.partyDetailsService = partyDetailsService;
     }
 
     public BreakdownCreateResponse create(BreakdownCreateRequest request) {
@@ -464,7 +467,8 @@ public class BreakdownService {
                 b.getInformedSolutionTypeId(), b.getStatus(), b.getApprovedBy(), b.getApprovedAt(),
                 b.getStartNote(), b.getStartedAt(), b.getActualSolutionTypeId(), b.getSolutionNote(),
                 b.getCompletedAt(), b.getCancelledBy(), b.getCancelledAt(), b.getCancelReason(),
-                b.getCreatedAt(), b.getExpectedCompletionAt(), b.getContactEmail());
+                b.getCreatedAt(), b.getExpectedCompletionAt(), b.getContactEmail(),
+                partyDetailsService.forSite(b.getCustomerSiteId()));
     }
 
     private BreakdownAssignmentResponse assignmentResponse(BreakdownTechnicianAssignment a) {
