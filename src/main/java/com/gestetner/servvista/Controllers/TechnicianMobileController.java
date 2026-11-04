@@ -13,6 +13,7 @@ import com.gestetner.servvista.Dto.services.ServiceVisitStartRequest;
 import com.gestetner.servvista.Dto.services.ServiceVisitStartResponse;
 import com.gestetner.servvista.Dto.technician.ChangeOwnPasswordRequest;
 import com.gestetner.servvista.Dto.technician.TechnicianInstallationStatusRequest;
+import com.gestetner.servvista.Dto.technician.TechnicianOpenWorkResponse;
 import com.gestetner.servvista.Dto.reference.MeterCounterTypeResponse;
 import com.gestetner.servvista.Dto.reference.SolutionTypeResponse;
 import com.gestetner.servvista.Dto.meters.MeterReadingResponse;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -54,6 +56,13 @@ public class TechnicianMobileController {
     @GetMapping("/installation-jobs")
     public List<InstallationJobResponse> installations(@AuthenticationPrincipal Jwt jwt) {
         return service.installations(userId(jwt));
+    }
+
+    @GetMapping("/installation-jobs/recent")
+    public List<InstallationJobResponse> recentInstallations(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "7") int days) {
+        return service.recentInstallations(userId(jwt), days);
     }
 
     @GetMapping("/installation-jobs/{jobId}")
@@ -83,6 +92,13 @@ public class TechnicianMobileController {
         return service.breakdowns(userId(jwt));
     }
 
+    @GetMapping("/breakdowns/recent")
+    public List<BreakdownResponse> recentBreakdowns(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "7") int days) {
+        return service.recentBreakdowns(userId(jwt), days);
+    }
+
     @GetMapping("/breakdowns/{breakdownId}")
     public BreakdownResponse breakdown(
             @AuthenticationPrincipal Jwt jwt, @PathVariable Long breakdownId) {
@@ -106,6 +122,17 @@ public class TechnicianMobileController {
     @GetMapping("/service-schedules")
     public List<ServiceScheduleResponse> schedules(@AuthenticationPrincipal Jwt jwt) {
         return service.schedules(userId(jwt));
+    }
+
+    @GetMapping("/service-schedules/current-month")
+    public List<ServiceScheduleResponse> currentMonthSchedules(
+            @AuthenticationPrincipal Jwt jwt) {
+        return service.currentMonthSchedules(userId(jwt));
+    }
+
+    @GetMapping("/open-work")
+    public TechnicianOpenWorkResponse openWork(@AuthenticationPrincipal Jwt jwt) {
+        return service.openWork(userId(jwt));
     }
 
     @GetMapping("/service-schedules/{scheduleId}")

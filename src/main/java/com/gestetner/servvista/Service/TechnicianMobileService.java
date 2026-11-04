@@ -15,8 +15,11 @@ import com.gestetner.servvista.Dto.services.ServiceVisitStartRequest;
 import com.gestetner.servvista.Dto.services.ServiceVisitStartResponse;
 import com.gestetner.servvista.Dto.meters.MeterReadingResponse;
 import com.gestetner.servvista.Dto.technician.ChangeOwnPasswordRequest;
+import com.gestetner.servvista.Dto.technician.TechnicianOpenWorkResponse;
 import com.gestetner.servvista.Models.Enums.Breakdowns.BreakdownAssignmentStatus;
+import com.gestetner.servvista.Models.Enums.Breakdowns.BreakdownStatus;
 import com.gestetner.servvista.Models.Enums.Installations.InstallationJobStatus;
+import com.gestetner.servvista.Models.Enums.Services.ServiceScheduleStatus;
 import com.gestetner.servvista.Models.entity.identity.Technician;
 import com.gestetner.servvista.Models.entity.identity.User;
 import com.gestetner.servvista.Models.entity.machines.Machine;
@@ -31,6 +34,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 
 @Service
@@ -79,6 +84,17 @@ public class TechnicianMobileService {
     }
 
     @Transactional(readOnly = true)
+    public List<InstallationJobResponse> recentInstallations(Long userId, int days) {
+        if (days < 1 || days > 90) {
+            throw new IllegalArgumentException("days must be between 1 and 90");
+        }
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
+        return installations(userId).stream()
+                .filter(item -> item.createdAt() != null && !item.createdAt().isBefore(cutoff))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public InstallationJobResponse installation(Long userId, Long jobId) {
         ensureInstallationOwner(userId, jobId);
         return installationService.getJobById(jobId);
@@ -111,6 +127,17 @@ public class TechnicianMobileService {
     }
 
     @Transactional(readOnly = true)
+    public List<BreakdownResponse> recentBreakdowns(Long userId, int days) {
+        if (days < 1 || days > 90) {
+            throw new IllegalArgumentException("days must be between 1 and 90");
+        }
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
+        return breakdowns(userId).stream()
+                .filter(item -> item.createdAt() != null && !item.createdAt().isBefore(cutoff))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public BreakdownResponse breakdown(Long userId, Long breakdownId) {
         ensureBreakdownOwner(userId, breakdownId);
         return breakdownService.getById(breakdownId);
@@ -136,6 +163,36 @@ public class TechnicianMobileService {
         return scheduleService.getAll().stream()
                 .filter(item -> technicianId.equals(item.assignedTechnicianId()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ServiceScheduleResponse> currentMonthSchedules(Long userId) {
+        YearMonth currentMonth = YearMonth.now();
+        LocalDate firstDay = currentMonth.atDay(1);
+        LocalDate lastDay = currentMonth.atEndOfMonth();
+        return schedules(userId).stream()
+                .filter(item -> item.expectedVisitDate() != null
+                        && !item.expectedVisitDate().isBefore(firstDay)
+                        && !item.expectedVisitDate().isAfter(lastDay))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public TechnicianOpenWorkResponse openWork(Long userId) {
+        List<InstallationJobResponse> installationJobs = installations(userId).stream()
+                .filter(item -> item.status() != InstallationJobStatus.COMPLETED
+                        && item.status() != InstallationJobStatus.CANCELLED)
+                .toList();
+        List<BreakdownResponse> breakdownJobs = breakdowns(userId).stream()
+                .filter(item -> item.status() != BreakdownStatus.COMPLETED
+                        && item.status() != BreakdownStatus.CANCELLED)
+                .toList();
+        List<ServiceScheduleResponse> serviceVisits = schedules(userId).stream()
+                .filter(item -> item.status() != ServiceScheduleStatus.COMPLETED
+                        && item.status() != ServiceScheduleStatus.CANCELLED)
+                .toList();
+        return new TechnicianOpenWorkResponse(
+                installationJobs, breakdownJobs, serviceVisits);
     }
 
     @Transactional(readOnly = true)
