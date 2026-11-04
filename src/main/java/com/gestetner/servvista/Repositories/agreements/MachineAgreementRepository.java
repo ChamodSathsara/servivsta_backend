@@ -1,6 +1,12 @@
 package com.gestetner.servvista.Repositories.agreements;
 
 import com.gestetner.servvista.Models.entity.agreements.MachineAgreement;
+import com.gestetner.servvista.Dto.reports.MachineAgreementReportRow;
+import com.gestetner.servvista.Models.Enums.Agreements.AgreementType;
+import com.gestetner.servvista.Models.Enums.Identity.TechnicianRole;
+import com.gestetner.servvista.Models.Enums.Organization.Area;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -8,6 +14,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDate;
 
 /**
  * Spring Data JPA repository for {@link MachineAgreement}.
@@ -41,4 +48,37 @@ public interface MachineAgreementRepository extends JpaRepository<MachineAgreeme
     Optional<MachineAgreement>
             findFirstByMachineIdAndInstallationJobIdAndIsActiveTrueOrderByAgreementIdDesc(
                     Long machineId, Long installationJobId);
+
+    @Query("""
+            select new com.gestetner.servvista.Dto.reports.MachineAgreementReportRow(
+                agreement.agreementId, agreement.agreementNumber,
+                agreement.agreementType, agreement.agreementStatus,
+                agreement.agreementStartDate, agreement.agreementEndDate,
+                agreement.annualPayment, agreement.fullPayment,
+                machine.machineId, machine.machineReferenceNumber, machine.serialNumber,
+                model.modelNumber, model.modelName,
+                customer.customerId, customer.customerName,
+                site.customerSiteId, site.siteName, site.area,
+                technician.technicianId, technician.technicianName, technician.technicianRole)
+            from MachineAgreement agreement
+            join agreement.machine machine
+            left join machine.model model
+            left join machine.currentCustomerSite site
+            left join site.customer customer
+            left join machine.currentMainTechnician technician
+            where agreement.agreementType = :agreementType
+              and agreement.agreementStartDate <= :lastDate
+              and agreement.agreementEndDate >= :startDate
+              and (:area is null or site.area = :area)
+              and (:mainTechnicianId is null or technician.technicianId = :mainTechnicianId)
+              and (:team is null or technician.technicianRole = :team)
+            """)
+    Page<MachineAgreementReportRow> findReport(
+            @Param("agreementType") AgreementType agreementType,
+            @Param("startDate") LocalDate startDate,
+            @Param("lastDate") LocalDate lastDate,
+            @Param("area") Area area,
+            @Param("mainTechnicianId") Long mainTechnicianId,
+            @Param("team") TechnicianRole team,
+            Pageable pageable);
 }
