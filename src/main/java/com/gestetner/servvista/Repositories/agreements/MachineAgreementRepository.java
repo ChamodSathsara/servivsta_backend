@@ -4,6 +4,7 @@ import com.gestetner.servvista.Models.entity.agreements.MachineAgreement;
 import com.gestetner.servvista.Dto.reports.MachineAgreementReportRow;
 import com.gestetner.servvista.Models.Enums.Agreements.AgreementType;
 import com.gestetner.servvista.Models.Enums.Organization.Area;
+import com.gestetner.servvista.Models.Enums.Organization.Company;
 import com.gestetner.servvista.Models.Enums.Organization.Division;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -72,6 +73,7 @@ public interface MachineAgreementRepository extends JpaRepository<MachineAgreeme
               and (:area is null or site.area = :area)
               and (:mainTechnicianId is null or technician.technicianId = :mainTechnicianId)
               and (:division is null or machine.division = :division)
+              and (:company is null or machine.company = :company)
             """)
     Page<MachineAgreementReportRow> findReport(
             @Param("agreementType") AgreementType agreementType,
@@ -80,5 +82,6 @@ public interface MachineAgreementRepository extends JpaRepository<MachineAgreeme
             @Param("area") Area area,
             @Param("mainTechnicianId") Long mainTechnicianId,
             @Param("division") Division division,
+            @Param("company") Company company,
             Pageable pageable);
 }

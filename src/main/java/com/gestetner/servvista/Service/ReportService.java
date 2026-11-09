@@ -3,6 +3,7 @@ package com.gestetner.servvista.Service;
 import com.gestetner.servvista.Dto.reports.MachineAgreementReportRow;
 import com.gestetner.servvista.Models.Enums.Agreements.AgreementType;
 import com.gestetner.servvista.Models.Enums.Organization.Area;
+import com.gestetner.servvista.Models.Enums.Organization.Company;
 import com.gestetner.servvista.Models.Enums.Organization.Division;
 import com.gestetner.servvista.Repositories.agreements.MachineAgreementRepository;
 import com.lowagie.text.Document;
@@ -56,6 +57,7 @@ public class ReportService {
             Area area,
             Long mainTechnicianId,
             Division division,
+            Company company,
             int page,
             int size) {
         validate(startDate, lastDate, page, size);
@@ -63,7 +65,7 @@ public class ReportService {
                 Sort.by(Sort.Direction.ASC, "agreementStartDate")
                         .and(Sort.by(Sort.Direction.ASC, "agreementId")));
         return agreementRepository.findReport(agreementType, startDate, lastDate,
-                area, mainTechnicianId, division, pageable);
+                area, mainTechnicianId, division, company, pageable);
     }
 
     public byte[] pdf(
@@ -73,10 +75,11 @@ public class ReportService {
             Area area,
             Long mainTechnicianId,
             Division division,
+            Company company,
             int page,
             int size) {
         List<MachineAgreementReportRow> rows = machineAgreements(type, startDate,
-                lastDate, area, mainTechnicianId, division, page, size).getContent();
+                lastDate, area, mainTechnicianId, division, company, page, size).getContent();
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A4.rotate(), 24, 24, 24, 24);
             PdfWriter.getInstance(document, output);
@@ -123,10 +126,11 @@ public class ReportService {
             Area area,
             Long mainTechnicianId,
             Division division,
+            Company company,
             int page,
             int size) {
         List<MachineAgreementReportRow> rows = machineAgreements(type, startDate,
-                lastDate, area, mainTechnicianId, division, page, size).getContent();
+                lastDate, area, mainTechnicianId, division, company, page, size).getContent();
         try (Workbook workbook = new XSSFWorkbook();
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet(type + " Agreements");
