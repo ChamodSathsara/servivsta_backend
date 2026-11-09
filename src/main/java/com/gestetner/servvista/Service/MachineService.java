@@ -7,6 +7,7 @@ import com.gestetner.servvista.Dto.machines.MachineRequest;
 import com.gestetner.servvista.Dto.machines.MachineResponse;
 import com.gestetner.servvista.Dto.machines.SiteContactData;
 import com.gestetner.servvista.Dto.machines.CustomerSiteOptionResponse;
+import com.gestetner.servvista.Dto.machines.CustomerSiteCreateRequest;
 import com.gestetner.servvista.Dto.machines.MachineCustomerTransferRequest;
 import com.gestetner.servvista.Dto.machines.MachineHistoryEventResponse;
 import com.gestetner.servvista.Dto.machines.MachineReturnRequest;
@@ -115,6 +116,26 @@ public class MachineService {
                                 .replaceAll("(, )+$", ""),
                         site.getArea()))
                 .toList();
+    }
+
+    public CustomerSiteOptionResponse createCustomerSite(CustomerSiteCreateRequest request) {
+        CustomerSiteData data = request.site();
+        requireExists(customerRepository.existsById(data.customerId()), "Customer", data.customerId());
+        requireExists(cityRepository.existsById(data.cityId()), "City", data.cityId());
+        requireExists(userRepository.existsById(request.performedBy()), "User", request.performedBy());
+        if (customerSiteRepository.existsByCustomerIdAndSiteNameIgnoreCase(
+                data.customerId(), data.siteName().trim())) {
+            throw duplicate("Customer site", data.siteName().trim());
+        }
+        LocalDateTime now = LocalDateTime.now();
+        CustomerSite site = createSite(data, request.performedBy(), now);
+        createContact(request.contact(), site.getCustomerSiteId(), request.performedBy(), now);
+        return new CustomerSiteOptionResponse(
+                site.getCustomerSiteId(), site.getCustomerId(), site.getSiteName(),
+                String.join(", ", List.of(site.getAddressLine1(),
+                        site.getAddressLine2() == null ? "" : site.getAddressLine2(),
+                        site.getAddressLine3() == null ? "" : site.getAddressLine3()))
+                        .replaceAll("(, )+$", ""), site.getArea());
     }
 
     public MachineResponse transferCustomer(Long machineId, MachineCustomerTransferRequest request) {

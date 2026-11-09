@@ -3,6 +3,7 @@ package com.gestetner.servvista.Controllers;
 import com.gestetner.servvista.Dto.machines.MachineRequest;
 import com.gestetner.servvista.Dto.machines.MachineResponse;
 import com.gestetner.servvista.Dto.machines.CustomerSiteOptionResponse;
+import com.gestetner.servvista.Dto.machines.CustomerSiteCreateRequest;
 import com.gestetner.servvista.Dto.machines.MachineCustomerTransferRequest;
 import com.gestetner.servvista.Dto.machines.MachineHistoryEventResponse;
 import com.gestetner.servvista.Dto.machines.MachineReturnRequest;
@@ -75,6 +76,14 @@ public class MachineController {
     @Operation(summary = "Get active sites for a customer")
     public List<CustomerSiteOptionResponse> customerSites(@RequestParam Long customerId) {
         return machineService.customerSites(customerId);
+    }
+
+    @PostMapping("/customer-sites")
+    @Operation(summary = "Create a customer site and its primary contact")
+    public ResponseEntity<CustomerSiteOptionResponse> createCustomerSite(
+            @Valid @RequestBody CustomerSiteCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(machineService.createCustomerSite(request));
     }
 
     @GetMapping("/{machineId}/history")
