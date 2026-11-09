@@ -126,20 +126,20 @@ public class ServiceScheduleService {
                 .stream().map(this::response).toList();
     }
 
-    @Transactional(readOnly = true)
     public List<ServiceScheduleResponse> getAll() {
+        markDueVisits();
         return scheduleRepository.findAllWithDetails().stream().map(this::response).toList();
     }
 
-    @Transactional(readOnly = true)
     public ServiceScheduleResponse getById(Long scheduleId) {
+        markDueVisits();
         return response(scheduleRepository.findByIdWithDetails(scheduleId)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Service schedule " + scheduleId + " was not found")));
     }
 
-    @Transactional(readOnly = true)
     public List<ServiceScheduleResponse> getByAgreement(Long agreementId) {
+        markDueVisits();
         if (!agreementRepository.existsById(agreementId)) {
             throw new EntityNotFoundException("Machine agreement " + agreementId + " was not found");
         }
@@ -147,8 +147,8 @@ public class ServiceScheduleService {
                 .stream().map(this::response).toList();
     }
 
-    @Transactional(readOnly = true)
     public List<ServiceScheduleResponse> getByMachine(Long machineId) {
+        markDueVisits();
         if (!machineRepository.existsById(machineId)) {
             throw new EntityNotFoundException("Machine " + machineId + " was not found");
         }
@@ -212,6 +212,10 @@ public class ServiceScheduleService {
         return scheduleRepository.findByIdWithDetails(scheduleId)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Service schedule " + scheduleId + " was not found"));
+    }
+
+    private void markDueVisits() {
+        scheduleRepository.markScheduledVisitsDue(LocalDate.now());
     }
 
     private ServiceVisitMeterReadingResponse meterReadingResponse(MeterReading reading) {

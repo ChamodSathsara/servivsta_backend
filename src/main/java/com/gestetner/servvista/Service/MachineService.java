@@ -213,7 +213,7 @@ public class MachineService {
                     });
         }
         MachineStatus previous = machine.getCurrentStatus();
-        machine.setCurrentStatus(MachineStatus.AVAILABLE);
+        machine.setCurrentStatus(MachineStatus.RETURNED);
         machine.setCurrentCustomerSiteId(null);
         machine.setCurrentCustomerSite(null);
         machine.setCurrentMainTechnicianId(null);
@@ -223,7 +223,7 @@ public class MachineService {
         machine.setUpdatedBy(request.performedBy());
         machine.setUpdatedAt(LocalDateTime.now());
         machineRepository.saveAndFlush(machine);
-        addStatusHistory(machineId, previous, MachineStatus.AVAILABLE,
+        addStatusHistory(machineId, previous, MachineStatus.RETURNED,
                 request.performedBy(), "Returned to stock: " + request.reason(), LocalDateTime.now());
         return response(findMachine(machineId));
     }

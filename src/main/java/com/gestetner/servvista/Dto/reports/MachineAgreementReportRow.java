@@ -2,8 +2,8 @@ package com.gestetner.servvista.Dto.reports;
 
 import com.gestetner.servvista.Models.Enums.Agreements.AgreementStatus;
 import com.gestetner.servvista.Models.Enums.Agreements.AgreementType;
-import com.gestetner.servvista.Models.Enums.Identity.TechnicianRole;
 import com.gestetner.servvista.Models.Enums.Organization.Area;
+import com.gestetner.servvista.Models.Enums.Organization.Division;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -29,6 +29,6 @@ public record MachineAgreementReportRow(
         Area area,
         Long mainTechnicianId,
         String mainTechnicianName,
-        TechnicianRole team
+        Division division
 ) {
 }

@@ -151,10 +151,8 @@ public class BreakdownService {
 
     public BreakdownStartResponse start(Long breakdownId, BreakdownStartRequest request) {
         Breakdown breakdown = findBreakdown(breakdownId);
-        if (breakdown.getStatus() != BreakdownStatus.ASSIGNED
-                && breakdown.getStatus() != BreakdownStatus.TRAVELLING) {
-            throw new IllegalStateException(
-                    "Only an assigned or travelling breakdown can be started");
+        if (breakdown.getStatus() != BreakdownStatus.ASSIGNED) {
+            throw new IllegalStateException("Only an assigned breakdown can be started");
         }
         requireExists(meterCounterTypeRepository.existsById(request.meterCounterTypeId()),
                 "Meter counter type", request.meterCounterTypeId());
@@ -381,8 +379,9 @@ public class BreakdownService {
 
     private void applyBreakdown(Breakdown breakdown, BreakdownRequest request, boolean create) {
         BreakdownStatus oldStatus = breakdown.getStatus();
-        BreakdownStatus status = request.status() == null
-                ? (create ? BreakdownStatus.PROCESSING : oldStatus) : request.status();
+        // Status changes use the dedicated assign/start/complete/recall/cancel workflows.
+        // A newly reported breakdown always starts as ASSIGNED.
+        BreakdownStatus status = create ? BreakdownStatus.ASSIGNED : oldStatus;
         breakdown.setMachineId(request.machineId());
         breakdown.setCustomerSiteId(request.customerSiteId());
         breakdown.setReportedByType(request.reportedByType());
@@ -400,7 +399,6 @@ public class BreakdownService {
         breakdown.setExpectedCompletionAt(request.expectedCompletionAt());
         breakdown.setContactEmail(request.contactEmail().trim().toLowerCase(Locale.ROOT));
         LocalDateTime now = LocalDateTime.now();
-        if (status == BreakdownStatus.APPROVED && breakdown.getApprovedAt() == null) breakdown.setApprovedAt(now);
         if (status == BreakdownStatus.STARTED && breakdown.getStartedAt() == null) breakdown.setStartedAt(now);
         if (status == BreakdownStatus.COMPLETED && breakdown.getCompletedAt() == null) breakdown.setCompletedAt(now);
         if (status == BreakdownStatus.CANCELLED && breakdown.getCancelledAt() == null) breakdown.setCancelledAt(now);

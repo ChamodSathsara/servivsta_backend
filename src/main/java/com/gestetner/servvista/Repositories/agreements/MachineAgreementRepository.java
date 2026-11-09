@@ -3,8 +3,8 @@ package com.gestetner.servvista.Repositories.agreements;
 import com.gestetner.servvista.Models.entity.agreements.MachineAgreement;
 import com.gestetner.servvista.Dto.reports.MachineAgreementReportRow;
 import com.gestetner.servvista.Models.Enums.Agreements.AgreementType;
-import com.gestetner.servvista.Models.Enums.Identity.TechnicianRole;
 import com.gestetner.servvista.Models.Enums.Organization.Area;
+import com.gestetner.servvista.Models.Enums.Organization.Division;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -59,7 +59,7 @@ public interface MachineAgreementRepository extends JpaRepository<MachineAgreeme
                 model.modelNumber, model.modelName,
                 customer.customerId, customer.customerName,
                 site.customerSiteId, site.siteName, site.area,
-                technician.technicianId, technician.technicianName, technician.technicianRole)
+                technician.technicianId, technician.technicianName, machine.division)
             from MachineAgreement agreement
             join agreement.machine machine
             left join machine.model model
@@ -71,7 +71,7 @@ public interface MachineAgreementRepository extends JpaRepository<MachineAgreeme
               and agreement.agreementEndDate >= :startDate
               and (:area is null or site.area = :area)
               and (:mainTechnicianId is null or technician.technicianId = :mainTechnicianId)
-              and (:team is null or technician.technicianRole = :team)
+              and (:division is null or machine.division = :division)
             """)
     Page<MachineAgreementReportRow> findReport(
             @Param("agreementType") AgreementType agreementType,
@@ -79,6 +79,6 @@ public interface MachineAgreementRepository extends JpaRepository<MachineAgreeme
             @Param("lastDate") LocalDate lastDate,
             @Param("area") Area area,
             @Param("mainTechnicianId") Long mainTechnicianId,
-            @Param("team") TechnicianRole team,
+            @Param("division") Division division,
             Pageable pageable);
 }

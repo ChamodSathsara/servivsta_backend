@@ -7,10 +7,7 @@ namespace NewServvista.Models.Enums.Breakdowns;
 
 public enum BreakdownStatus
 {
-    PROCESSING,
-    APPROVED,
     ASSIGNED,
-    TRAVELLING,
     STARTED,
     COMPLETED,
     RECALL,

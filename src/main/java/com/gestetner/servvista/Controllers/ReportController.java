@@ -2,8 +2,8 @@ package com.gestetner.servvista.Controllers;
 
 import com.gestetner.servvista.Dto.reports.MachineAgreementReportRow;
 import com.gestetner.servvista.Models.Enums.Agreements.AgreementType;
-import com.gestetner.servvista.Models.Enums.Identity.TechnicianRole;
 import com.gestetner.servvista.Models.Enums.Organization.Area;
+import com.gestetner.servvista.Models.Enums.Organization.Division;
 import com.gestetner.servvista.Service.ReportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -92,13 +92,13 @@ public class ReportController {
 
     private Page<MachineAgreementReportRow> json(AgreementType type, ReportFilter filter) {
         return reportService.machineAgreements(type, filter.startDate(), filter.lastDate(),
-                filter.area(), filter.mainTechnicianId(), filter.team(),
+                filter.area(), filter.mainTechnicianId(), filter.division(),
                 filter.pageNumber(), filter.pageSize());
     }
 
     private ResponseEntity<byte[]> pdf(AgreementType type, ReportFilter filter) {
         byte[] report = reportService.pdf(type, filter.startDate(), filter.lastDate(),
-                filter.area(), filter.mainTechnicianId(), filter.team(),
+                filter.area(), filter.mainTechnicianId(), filter.division(),
                 filter.pageNumber(), filter.pageSize());
         return download(report, MediaType.APPLICATION_PDF,
                 type.name().toLowerCase() + "-machine-agreements.pdf");
@@ -106,7 +106,7 @@ public class ReportController {
 
     private ResponseEntity<byte[]> excel(AgreementType type, ReportFilter filter) {
         byte[] report = reportService.excel(type, filter.startDate(), filter.lastDate(),
-                filter.area(), filter.mainTechnicianId(), filter.team(),
+                filter.area(), filter.mainTechnicianId(), filter.division(),
                 filter.pageNumber(), filter.pageSize());
         return download(report, MediaType.parseMediaType(XLSX),
                 type.name().toLowerCase() + "-machine-agreements.xlsx");
@@ -130,7 +130,7 @@ public class ReportController {
             LocalDate lastDate,
             @RequestParam(required = false) Area area,
             @RequestParam(required = false) Long mainTechnicianId,
-            @RequestParam(required = false) TechnicianRole team,
+            @RequestParam(required = false) Division division,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size
     ) {

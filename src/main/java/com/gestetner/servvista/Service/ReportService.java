@@ -2,8 +2,8 @@ package com.gestetner.servvista.Service;
 
 import com.gestetner.servvista.Dto.reports.MachineAgreementReportRow;
 import com.gestetner.servvista.Models.Enums.Agreements.AgreementType;
-import com.gestetner.servvista.Models.Enums.Identity.TechnicianRole;
 import com.gestetner.servvista.Models.Enums.Organization.Area;
+import com.gestetner.servvista.Models.Enums.Organization.Division;
 import com.gestetner.servvista.Repositories.agreements.MachineAgreementRepository;
 import com.lowagie.text.Document;
 import com.lowagie.text.Element;
@@ -40,7 +40,7 @@ public class ReportService {
     private static final String[] HEADERS = {
             "Agreement", "Status", "Start date", "End date", "Machine ref",
             "Serial number", "Model", "Customer", "Site", "Area",
-            "Main technician", "Team"
+            "Main technician", "Division"
     };
 
     private final MachineAgreementRepository agreementRepository;
@@ -55,7 +55,7 @@ public class ReportService {
             LocalDate lastDate,
             Area area,
             Long mainTechnicianId,
-            TechnicianRole team,
+            Division division,
             int page,
             int size) {
         validate(startDate, lastDate, page, size);
@@ -63,7 +63,7 @@ public class ReportService {
                 Sort.by(Sort.Direction.ASC, "agreementStartDate")
                         .and(Sort.by(Sort.Direction.ASC, "agreementId")));
         return agreementRepository.findReport(agreementType, startDate, lastDate,
-                area, mainTechnicianId, team, pageable);
+                area, mainTechnicianId, division, pageable);
     }
 
     public byte[] pdf(
@@ -72,11 +72,11 @@ public class ReportService {
             LocalDate lastDate,
             Area area,
             Long mainTechnicianId,
-            TechnicianRole team,
+            Division division,
             int page,
             int size) {
         List<MachineAgreementReportRow> rows = machineAgreements(type, startDate,
-                lastDate, area, mainTechnicianId, team, page, size).getContent();
+                lastDate, area, mainTechnicianId, division, page, size).getContent();
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A4.rotate(), 24, 24, 24, 24);
             PdfWriter.getInstance(document, output);
@@ -122,11 +122,11 @@ public class ReportService {
             LocalDate lastDate,
             Area area,
             Long mainTechnicianId,
-            TechnicianRole team,
+            Division division,
             int page,
             int size) {
         List<MachineAgreementReportRow> rows = machineAgreements(type, startDate,
-                lastDate, area, mainTechnicianId, team, page, size).getContent();
+                lastDate, area, mainTechnicianId, division, page, size).getContent();
         try (Workbook workbook = new XSSFWorkbook();
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet(type + " Agreements");
@@ -185,7 +185,7 @@ public class ReportService {
                 text(row.machineReferenceNumber()), text(row.serialNumber()),
                 text(row.modelNumber()) + " - " + text(row.modelName()),
                 text(row.customerName()), text(row.siteName()), text(row.area()),
-                text(row.mainTechnicianName()), text(row.team())
+                text(row.mainTechnicianName()), text(row.division())
         };
     }
 
