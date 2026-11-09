@@ -33,6 +33,7 @@ import org.springframework.stereotype.Service;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
+import java.time.LocalDate;
 
 @Service
 public class BreakdownReportService {
@@ -49,20 +50,23 @@ public class BreakdownReportService {
     }
 
     public Page<BreakdownJobReportRow> report(
+            LocalDate startDate, LocalDate endDate,
             Company company, Division division, Area area, AgreementType agreementType,
             BreakdownStatus jobStatus, String search, int page, int size) {
-        validate(page, size);
+        validate(startDate, endDate, page, size);
         String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
-        return breakdownRepository.findBreakdownReport(company, division, area, agreementType,
+        return breakdownRepository.findBreakdownReport(startDate.atStartOfDay(),
+                endDate.plusDays(1).atStartOfDay(), company, division, area, agreementType,
                 jobStatus, normalizedSearch, PageRequest.of(page, size,
                         Sort.by(Sort.Direction.DESC, "createdAt")
                                 .and(Sort.by(Sort.Direction.DESC, "breakdownId"))));
     }
 
     public byte[] pdf(
+            LocalDate startDate, LocalDate endDate,
             Company company, Division division, Area area, AgreementType agreementType,
             BreakdownStatus jobStatus, String search, int page, int size) {
-        List<BreakdownJobReportRow> rows = report(company, division, area, agreementType,
+        List<BreakdownJobReportRow> rows = report(startDate, endDate, company, division, area, agreementType,
                 jobStatus, search, page, size).getContent();
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A3.rotate(), 20, 20, 20, 20);
@@ -101,9 +105,10 @@ public class BreakdownReportService {
     }
 
     public byte[] excel(
+            LocalDate startDate, LocalDate endDate,
             Company company, Division division, Area area, AgreementType agreementType,
             BreakdownStatus jobStatus, String search, int page, int size) {
-        List<BreakdownJobReportRow> rows = report(company, division, area, agreementType,
+        List<BreakdownJobReportRow> rows = report(startDate, endDate, company, division, area, agreementType,
                 jobStatus, search, page, size).getContent();
         try (Workbook workbook = new XSSFWorkbook();
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {
@@ -140,7 +145,9 @@ public class BreakdownReportService {
         }
     }
 
-    private void validate(int page, int size) {
+    private void validate(LocalDate startDate, LocalDate endDate, int page, int size) {
+        if (startDate == null || endDate == null) throw new IllegalArgumentException("startDate and endDate are required");
+        if (endDate.isBefore(startDate)) throw new IllegalArgumentException("endDate must be on or after startDate");
         if (page < 0) throw new IllegalArgumentException("page must be zero or greater");
         if (size < 1 || size > 5000) {
             throw new IllegalArgumentException("size must be between 1 and 5000");

@@ -44,20 +44,22 @@ public class ServiceVisitReportService {
     }
 
     public Page<ServiceVisitReportRow> report(
+            LocalDate startDate, LocalDate endDate,
             Company company, Division division, Area area, AgreementType agreementType,
             ServiceScheduleStatus visitStatus, String search, int page, int size) {
-        validate(page, size);
+        validate(startDate, endDate, page, size);
         repository.markScheduledVisitsDue(LocalDate.now());
         String normalized = search == null || search.isBlank() ? null : search.trim();
-        return repository.findServiceVisitReport(company, division, area, agreementType,
+        return repository.findServiceVisitReport(startDate, endDate, company, division, area, agreementType,
                 visitStatus, normalized, PageRequest.of(page, size,
                         Sort.by(Sort.Direction.DESC, "expectedVisitDate")
                                 .and(Sort.by(Sort.Direction.DESC, "serviceScheduleId"))));
     }
 
-    public byte[] pdf(Company company, Division division, Area area, AgreementType agreementType,
+    public byte[] pdf(LocalDate startDate, LocalDate endDate,
+                      Company company, Division division, Area area, AgreementType agreementType,
                       ServiceScheduleStatus status, String search, int page, int size) {
-        List<ServiceVisitReportRow> rows = report(company, division, area, agreementType,
+        List<ServiceVisitReportRow> rows = report(startDate, endDate, company, division, area, agreementType,
                 status, search, page, size).getContent();
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A3.rotate(), 20, 20, 20, 20);
@@ -95,9 +97,10 @@ public class ServiceVisitReportService {
         }
     }
 
-    public byte[] excel(Company company, Division division, Area area, AgreementType agreementType,
+    public byte[] excel(LocalDate startDate, LocalDate endDate,
+                        Company company, Division division, Area area, AgreementType agreementType,
                         ServiceScheduleStatus status, String search, int page, int size) {
-        List<ServiceVisitReportRow> rows = report(company, division, area, agreementType,
+        List<ServiceVisitReportRow> rows = report(startDate, endDate, company, division, area, agreementType,
                 status, search, page, size).getContent();
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Service Visits");
@@ -131,7 +134,9 @@ public class ServiceVisitReportService {
         }
     }
 
-    private void validate(int page, int size) {
+    private void validate(LocalDate startDate, LocalDate endDate, int page, int size) {
+        if (startDate == null || endDate == null) throw new IllegalArgumentException("startDate and endDate are required");
+        if (endDate.isBefore(startDate)) throw new IllegalArgumentException("endDate must be on or after startDate");
         if (page < 0) throw new IllegalArgumentException("page must be zero or greater");
         if (size < 1 || size > 5000) throw new IllegalArgumentException("size must be between 1 and 5000");
     }

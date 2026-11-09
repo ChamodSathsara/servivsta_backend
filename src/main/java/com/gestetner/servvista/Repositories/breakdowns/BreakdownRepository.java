@@ -16,6 +16,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 /**
  * Spring Data JPA repository for {@link Breakdown}.
@@ -55,6 +56,8 @@ public interface BreakdownRepository extends JpaRepository<Breakdown, Long> {
                 and assignment.assignmentStatus = com.gestetner.servvista.Models.Enums.Breakdowns.BreakdownAssignmentStatus.CURRENT
             left join assignment.technician technician
             where (:company is null or machine.company = :company)
+              and breakdown.createdAt >= :fromDateTime
+              and breakdown.createdAt < :toDateTime
               and (:division is null or machine.division = :division)
               and (:area is null or site.area = :area)
               and (:agreementType is null or agreement.agreementType = :agreementType)
@@ -64,6 +67,8 @@ public interface BreakdownRepository extends JpaRepository<Breakdown, Long> {
                    or lower(technician.techCode) like lower(concat('%', :search, '%')))
             """)
     Page<BreakdownJobReportRow> findBreakdownReport(
+            LocalDateTime fromDateTime,
+            LocalDateTime toDateTime,
             Company company,
             Division division,
             Area area,

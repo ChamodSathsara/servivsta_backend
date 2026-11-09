@@ -91,6 +91,7 @@ public interface ServiceScheduleRepository extends JpaRepository<ServiceSchedule
             left join schedule.assignedTechnician technician
             left join schedule.solutionType solution
             where (:company is null or machine.company = :company)
+              and schedule.expectedVisitDate between :startDate and :endDate
               and (:division is null or machine.division = :division)
               and (:area is null or site.area = :area)
               and (:agreementType is null or agreement.agreementType = :agreementType)
@@ -100,6 +101,8 @@ public interface ServiceScheduleRepository extends JpaRepository<ServiceSchedule
                    or lower(technician.techCode) like lower(concat('%', :search, '%')))
             """)
     Page<ServiceVisitReportRow> findServiceVisitReport(
+            LocalDate startDate,
+            LocalDate endDate,
             Company company,
             Division division,
             Area area,

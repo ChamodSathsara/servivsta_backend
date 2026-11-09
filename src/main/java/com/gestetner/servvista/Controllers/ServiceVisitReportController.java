@@ -13,6 +13,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/reports/service-visits")
@@ -27,20 +29,20 @@ public class ServiceVisitReportController {
     @GetMapping
     @Operation(summary = "Get the paginated service visit report")
     public Page<ServiceVisitReportRow> report(Filter filter) {
-        return service.report(filter.company(), filter.division(), filter.area(), filter.agreementType(),
+        return service.report(filter.startDate(), filter.endDate(), filter.company(), filter.division(), filter.area(), filter.agreementType(),
                 filter.visitStatus(), filter.search(), filter.pageNumber(), filter.pageSize());
     }
 
     @GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> pdf(Filter filter) {
-        return download(service.pdf(filter.company(), filter.division(), filter.area(), filter.agreementType(),
+        return download(service.pdf(filter.startDate(), filter.endDate(), filter.company(), filter.division(), filter.area(), filter.agreementType(),
                 filter.visitStatus(), filter.search(), filter.pageNumber(), filter.pageSize()),
                 MediaType.APPLICATION_PDF, "service-visit-report.pdf");
     }
 
     @GetMapping(value = "/excel", produces = XLSX)
     public ResponseEntity<byte[]> excel(Filter filter) {
-        return download(service.excel(filter.company(), filter.division(), filter.area(), filter.agreementType(),
+        return download(service.excel(filter.startDate(), filter.endDate(), filter.company(), filter.division(), filter.area(), filter.agreementType(),
                 filter.visitStatus(), filter.search(), filter.pageNumber(), filter.pageSize()),
                 MediaType.parseMediaType(XLSX), "service-visit-report.xlsx");
     }
@@ -52,6 +54,8 @@ public class ServiceVisitReportController {
     }
 
     public record Filter(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) Company company,
             @RequestParam(required = false) Division division,
             @RequestParam(required = false) Area area,
