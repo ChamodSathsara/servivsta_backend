@@ -6,12 +6,21 @@ import com.gestetner.servvista.Dto.machines.MachineInvoiceData;
 import com.gestetner.servvista.Dto.machines.MachineRequest;
 import com.gestetner.servvista.Dto.machines.MachineResponse;
 import com.gestetner.servvista.Dto.machines.SiteContactData;
+import com.gestetner.servvista.Dto.machines.CustomerSiteOptionResponse;
+import com.gestetner.servvista.Dto.machines.MachineCustomerTransferRequest;
+import com.gestetner.servvista.Dto.machines.MachineHistoryEventResponse;
+import com.gestetner.servvista.Dto.machines.MachineReturnRequest;
+import com.gestetner.servvista.Dto.machines.MachineTechnicianChangeRequest;
+import com.gestetner.servvista.Models.Enums.Machines.MachineStatus;
+import com.gestetner.servvista.Models.Enums.Machines.TechnicianAssignmentRole;
 import com.gestetner.servvista.Models.entity.customers.CustomerSite;
 import com.gestetner.servvista.Models.entity.customers.SiteContact;
 import com.gestetner.servvista.Models.entity.machines.Machine;
 import com.gestetner.servvista.Models.entity.machines.MachineInvoice;
 import com.gestetner.servvista.Models.entity.machines.MachineModel;
 import com.gestetner.servvista.Models.entity.machines.MachineStatusHistory;
+import com.gestetner.servvista.Models.entity.machines.MachineAssignment;
+import com.gestetner.servvista.Models.entity.machines.MachineTechnicianAssignment;
 import com.gestetner.servvista.Repositories.customers.CustomerRepository;
 import com.gestetner.servvista.Repositories.customers.CustomerSiteRepository;
 import com.gestetner.servvista.Repositories.customers.SiteContactRepository;
@@ -21,6 +30,8 @@ import com.gestetner.servvista.Repositories.machines.MachineInvoiceRepository;
 import com.gestetner.servvista.Repositories.machines.MachineModelRepository;
 import com.gestetner.servvista.Repositories.machines.MachineRepository;
 import com.gestetner.servvista.Repositories.machines.MachineStatusHistoryRepository;
+import com.gestetner.servvista.Repositories.machines.MachineAssignmentRepository;
+import com.gestetner.servvista.Repositories.machines.MachineTechnicianAssignmentRepository;
 import com.gestetner.servvista.Repositories.organization.CityRepository;
 import com.gestetner.servvista.Repositories.sales.DealerRepository;
 import com.gestetner.servvista.Repositories.sales.RepRepository;
@@ -31,6 +42,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -51,6 +66,8 @@ public class MachineService {
     private final RepRepository repRepository;
     private final SalesmanRepository salesmanRepository;
     private final UserRepository userRepository;
+    private final MachineAssignmentRepository machineAssignmentRepository;
+    private final MachineTechnicianAssignmentRepository technicianAssignmentRepository;
 
     public MachineService(
             MachineRepository machineRepository,
@@ -65,7 +82,9 @@ public class MachineService {
             DealerRepository dealerRepository,
             RepRepository repRepository,
             SalesmanRepository salesmanRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            MachineAssignmentRepository machineAssignmentRepository,
+            MachineTechnicianAssignmentRepository technicianAssignmentRepository) {
         this.machineRepository = machineRepository;
         this.machineStatusHistoryRepository = machineStatusHistoryRepository;
         this.machineModelRepository = machineModelRepository;
@@ -79,6 +98,182 @@ public class MachineService {
         this.repRepository = repRepository;
         this.salesmanRepository = salesmanRepository;
         this.userRepository = userRepository;
+        this.machineAssignmentRepository = machineAssignmentRepository;
+        this.technicianAssignmentRepository = technicianAssignmentRepository;
+    }
+
+    @Transactional(readOnly = true)
+    public List<CustomerSiteOptionResponse> customerSites(Long customerId) {
+        requireExists(customerRepository.existsById(customerId), "Customer", customerId);
+        return customerSiteRepository.findAllByCustomerIdAndIsActiveTrueOrderBySiteName(customerId)
+                .stream()
+                .map(site -> new CustomerSiteOptionResponse(
+                        site.getCustomerSiteId(), site.getCustomerId(), site.getSiteName(),
+                        String.join(", ", List.of(site.getAddressLine1(),
+                                site.getAddressLine2() == null ? "" : site.getAddressLine2(),
+                                site.getAddressLine3() == null ? "" : site.getAddressLine3()))
+                                .replaceAll("(, )+$", ""),
+                        site.getArea()))
+                .toList();
+    }
+
+    public MachineResponse transferCustomer(Long machineId, MachineCustomerTransferRequest request) {
+        Machine machine = findMachine(machineId);
+        requireExists(customerRepository.existsById(request.customerId()), "Customer", request.customerId());
+        requireExists(userRepository.existsById(request.performedBy()), "User", request.performedBy());
+        CustomerSite targetSite = customerSiteRepository.findById(request.customerSiteId())
+                .orElseThrow(() -> notFound("Customer site", request.customerSiteId()));
+        if (!targetSite.getCustomerId().equals(request.customerId())) {
+            throw new IllegalArgumentException("Selected site does not belong to the selected customer");
+        }
+        LocalDate closeDate = request.effectiveDate().minusDays(1);
+        for (MachineAssignment current : machineAssignmentRepository
+                .findAllByMachineIdAndIsCurrentTrue(machineId)) {
+            current.setAssignedTo(closeDate);
+            current.setIsCurrent(false);
+            machineAssignmentRepository.save(current);
+        }
+        MachineAssignment assignment = new MachineAssignment();
+        assignment.setMachineId(machineId);
+        assignment.setCustomerId(request.customerId());
+        assignment.setCustomerSiteId(request.customerSiteId());
+        assignment.setAssignmentType(request.assignmentType());
+        assignment.setAssignedFrom(request.effectiveDate());
+        assignment.setIsCurrent(true);
+        assignment.setCreatedBy(request.performedBy());
+        assignment.setCreatedAt(LocalDateTime.now());
+        machineAssignmentRepository.saveAndFlush(assignment);
+
+        machine.setCurrentCustomerSiteId(request.customerSiteId());
+        machine.setCurrentCustomerSite(targetSite);
+        machine.setUpdatedBy(request.performedBy());
+        machine.setUpdatedAt(LocalDateTime.now());
+        machineRepository.saveAndFlush(machine);
+        return response(findMachine(machineId));
+    }
+
+    public MachineResponse changeTechnicians(Long machineId, MachineTechnicianChangeRequest request) {
+        Machine machine = findMachine(machineId);
+        requireExists(userRepository.existsById(request.performedBy()), "User", request.performedBy());
+        validateOptional(request.mainTechnicianId(), technicianRepository::existsById, "Main technician");
+        validateOptional(request.serviceTechnicianId(), technicianRepository::existsById, "Service technician");
+        if (request.mainTechnicianId() != null
+                && request.mainTechnicianId().equals(request.serviceTechnicianId())) {
+            throw new IllegalArgumentException("Main and service technicians must be different");
+        }
+        replaceTechnician(machineId, TechnicianAssignmentRole.MAIN,
+                request.mainTechnicianId(), request.effectiveDate(), request.performedBy());
+        replaceTechnician(machineId, TechnicianAssignmentRole.SERVICE,
+                request.serviceTechnicianId(), request.effectiveDate(), request.performedBy());
+        machine.setCurrentMainTechnicianId(request.mainTechnicianId());
+        machine.setCurrentServiceTechnicianId(request.serviceTechnicianId());
+        machine.setUpdatedBy(request.performedBy());
+        machine.setUpdatedAt(LocalDateTime.now());
+        machineRepository.saveAndFlush(machine);
+        return response(findMachine(machineId));
+    }
+
+    public MachineResponse returnToStock(Long machineId, MachineReturnRequest request) {
+        Machine machine = findMachine(machineId);
+        requireExists(userRepository.existsById(request.performedBy()), "User", request.performedBy());
+        LocalDate closeDate = request.returnDate();
+        machineAssignmentRepository.findAllByMachineIdAndIsCurrentTrue(machineId).forEach(current -> {
+            current.setAssignedTo(closeDate);
+            current.setIsCurrent(false);
+            machineAssignmentRepository.save(current);
+        });
+        for (TechnicianAssignmentRole role : TechnicianAssignmentRole.values()) {
+            technicianAssignmentRepository
+                    .findAllByMachineIdAndAssignmentRoleAndIsCurrentTrue(machineId, role)
+                    .forEach(current -> {
+                        current.setAssignedTo(closeDate);
+                        current.setIsCurrent(false);
+                        technicianAssignmentRepository.save(current);
+                    });
+        }
+        MachineStatus previous = machine.getCurrentStatus();
+        machine.setCurrentStatus(MachineStatus.AVAILABLE);
+        machine.setCurrentCustomerSiteId(null);
+        machine.setCurrentCustomerSite(null);
+        machine.setCurrentMainTechnicianId(null);
+        machine.setCurrentServiceTechnicianId(null);
+        machine.setCurrentMainTechnician(null);
+        machine.setCurrentServiceTechnician(null);
+        machine.setUpdatedBy(request.performedBy());
+        machine.setUpdatedAt(LocalDateTime.now());
+        machineRepository.saveAndFlush(machine);
+        addStatusHistory(machineId, previous, MachineStatus.AVAILABLE,
+                request.performedBy(), "Returned to stock: " + request.reason(), LocalDateTime.now());
+        return response(findMachine(machineId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<MachineHistoryEventResponse> history(Long machineId) {
+        findMachine(machineId);
+        List<MachineHistoryEventResponse> events = new ArrayList<>();
+        machineStatusHistoryRepository.findAllByMachineIdOrderByChangedAtDesc(machineId)
+                .forEach(history -> events.add(new MachineHistoryEventResponse(
+                        "STATUS", "Status changed to " + history.getNewStatus(),
+                        (history.getPreviousStatus() + " → " + history.getNewStatus())
+                                + (history.getReason() == null ? "" : " · " + history.getReason()),
+                        history.getChangedAt(), userName(history.getChangedBy()))));
+        machineAssignmentRepository.findAllByMachineIdOrderByAssignedFromDescMachineAssignmentIdDesc(machineId)
+                .forEach(assignment -> events.add(new MachineHistoryEventResponse(
+                        "CUSTOMER", assignment.isCurrent() ? "Customer assigned" : "Previous customer assignment",
+                        customerName(assignment.getCustomerId()) + " · " + siteName(assignment.getCustomerSiteId())
+                                + " · " + assignment.getAssignedFrom()
+                                + (assignment.getAssignedTo() == null ? " onwards" : " to " + assignment.getAssignedTo()),
+                        assignment.getCreatedAt() == null
+                                ? assignment.getAssignedFrom().atStartOfDay() : assignment.getCreatedAt(),
+                        userName(assignment.getCreatedBy()))));
+        technicianAssignmentRepository.findAllByMachineIdOrderByAssignedFromDescMachineTechnicianAssignmentIdDesc(machineId)
+                .forEach(assignment -> events.add(new MachineHistoryEventResponse(
+                        "TECHNICIAN", assignment.getAssignmentRole() + " technician assigned",
+                        technicianName(assignment.getTechnicianId()) + " · " + assignment.getAssignedFrom()
+                                + (assignment.getAssignedTo() == null ? " onwards" : " to " + assignment.getAssignedTo()),
+                        assignment.getCreatedAt() == null
+                                ? assignment.getAssignedFrom().atTime(LocalTime.NOON) : assignment.getCreatedAt(),
+                        userName(assignment.getAssignedBy()))));
+        return events.stream().sorted(Comparator.comparing(
+                MachineHistoryEventResponse::occurredAt).reversed()).toList();
+    }
+
+    private void replaceTechnician(Long machineId, TechnicianAssignmentRole role,
+            Long technicianId, LocalDate effectiveDate, Long performedBy) {
+        technicianAssignmentRepository
+                .findAllByMachineIdAndAssignmentRoleAndIsCurrentTrue(machineId, role)
+                .forEach(current -> {
+                    current.setAssignedTo(effectiveDate.minusDays(1));
+                    current.setIsCurrent(false);
+                    technicianAssignmentRepository.save(current);
+                });
+        if (technicianId == null) return;
+        MachineTechnicianAssignment assignment = new MachineTechnicianAssignment();
+        assignment.setMachineId(machineId);
+        assignment.setTechnicianId(technicianId);
+        assignment.setAssignmentRole(role);
+        assignment.setAssignedFrom(effectiveDate);
+        assignment.setIsCurrent(true);
+        assignment.setAssignedBy(performedBy);
+        assignment.setCreatedAt(LocalDateTime.now());
+        technicianAssignmentRepository.saveAndFlush(assignment);
+    }
+
+    private String userName(Long id) {
+        if (id == null) return "System";
+        return userRepository.findById(id).map(user -> user.getUserName()).orElse("User " + id);
+    }
+
+    private String customerName(Long id) {
+        return customerRepository.findById(id).map(customer -> customer.getCustomerName()).orElse("Unknown customer");
+    }
+
+    private String siteName(Long id) {
+        return customerSiteRepository.findById(id).map(CustomerSite::getSiteName).orElse("Unknown site");
+    }
+
+    private String technicianName(Long id) {
+        return technicianRepository.findById(id).map(technician -> technician.getTechnicianName()).orElse("Unknown technician");
     }
 
     public MachineResponse create(MachineRequest request) {
@@ -408,7 +603,9 @@ public class MachineService {
     private MachineResponse response(Machine machine) {
         CustomerSite site = machine.getCurrentCustomerSite();
         MachineInvoice invoice = machine.getMachineInvoice();
-        SiteContact contact = findContact(site.getCustomerSiteId());
+        SiteContact contact = site == null ? null : siteContactRepository
+                .findFirstByCustomerSiteIdOrderByIsPrimaryDescSiteContactIdAsc(site.getCustomerSiteId())
+                .orElse(null);
         return response(machine, machine.getModel(), site, contact, invoice);
     }
 
@@ -436,25 +633,25 @@ public class MachineService {
                 machine.getOriginalInstallDate(),
                 machine.getNote(),
                 machine.getCreditNoteNumber(),
-                site.getCustomerSiteId(),
-                site.getCustomerId(),
-                site.getSiteName(),
-                site.getAddressLine1(),
-                site.getAddressLine2(),
-                site.getAddressLine3(),
-                site.getArea(),
-                site.getCityId(),
-                site.getLatitude(),
-                site.getLongitude(),
-                site.getIsHeadOffice(),
-                site.getIsActive(),
-                contact.getSiteContactId(),
-                contact.getContactName(),
-                contact.getMobileNumber(),
-                contact.getEmail(),
-                contact.getDesignation(),
-                contact.isPrimary(),
-                contact.isActive(),
+                site == null ? null : site.getCustomerSiteId(),
+                site == null ? null : site.getCustomerId(),
+                site == null ? null : site.getSiteName(),
+                site == null ? null : site.getAddressLine1(),
+                site == null ? null : site.getAddressLine2(),
+                site == null ? null : site.getAddressLine3(),
+                site == null ? null : site.getArea(),
+                site == null ? null : site.getCityId(),
+                site == null ? null : site.getLatitude(),
+                site == null ? null : site.getLongitude(),
+                site == null ? null : site.getIsHeadOffice(),
+                site == null ? null : site.getIsActive(),
+                contact == null ? null : contact.getSiteContactId(),
+                contact == null ? null : contact.getContactName(),
+                contact == null ? null : contact.getMobileNumber(),
+                contact == null ? null : contact.getEmail(),
+                contact == null ? null : contact.getDesignation(),
+                contact == null ? null : contact.isPrimary(),
+                contact == null ? null : contact.isActive(),
                 invoice.getMachineInvoiceId(),
                 invoice.getInvoiceNumber(),
                 invoice.getBelitaInvoiceNumber(),

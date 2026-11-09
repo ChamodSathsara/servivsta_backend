@@ -2,6 +2,11 @@ package com.gestetner.servvista.Controllers;
 
 import com.gestetner.servvista.Dto.machines.MachineRequest;
 import com.gestetner.servvista.Dto.machines.MachineResponse;
+import com.gestetner.servvista.Dto.machines.CustomerSiteOptionResponse;
+import com.gestetner.servvista.Dto.machines.MachineCustomerTransferRequest;
+import com.gestetner.servvista.Dto.machines.MachineHistoryEventResponse;
+import com.gestetner.servvista.Dto.machines.MachineReturnRequest;
+import com.gestetner.servvista.Dto.machines.MachineTechnicianChangeRequest;
 import com.gestetner.servvista.Dto.portal.MachinePortalRegistrationRequest;
 import com.gestetner.servvista.Dto.portal.MachinePortalRegistrationResponse;
 import com.gestetner.servvista.Service.MachineService;
@@ -64,6 +69,39 @@ public class MachineController {
     @Operation(summary = "Search machines")
     public ResponseEntity<List<MachineResponse>> search(@RequestParam String query) {
         return ResponseEntity.ok(machineService.search(query));
+    }
+
+    @GetMapping("/customer-sites")
+    @Operation(summary = "Get active sites for a customer")
+    public List<CustomerSiteOptionResponse> customerSites(@RequestParam Long customerId) {
+        return machineService.customerSites(customerId);
+    }
+
+    @GetMapping("/{machineId}/history")
+    @Operation(summary = "Get customer, technician, and status history for a machine")
+    public List<MachineHistoryEventResponse> history(@PathVariable Long machineId) {
+        return machineService.history(machineId);
+    }
+
+    @PostMapping("/{machineId}/customer-transfer")
+    @Operation(summary = "Transfer a machine to another customer site")
+    public MachineResponse transferCustomer(@PathVariable Long machineId,
+            @Valid @RequestBody MachineCustomerTransferRequest request) {
+        return machineService.transferCustomer(machineId, request);
+    }
+
+    @PostMapping("/{machineId}/technicians")
+    @Operation(summary = "Change the main and service technicians assigned to a machine")
+    public MachineResponse changeTechnicians(@PathVariable Long machineId,
+            @Valid @RequestBody MachineTechnicianChangeRequest request) {
+        return machineService.changeTechnicians(machineId, request);
+    }
+
+    @PostMapping("/{machineId}/return-to-stock")
+    @Operation(summary = "Return a customer machine to company stock")
+    public MachineResponse returnToStock(@PathVariable Long machineId,
+            @Valid @RequestBody MachineReturnRequest request) {
+        return machineService.returnToStock(machineId, request);
     }
 
     @PutMapping("/{machineId}")
