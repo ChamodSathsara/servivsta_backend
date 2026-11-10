@@ -8,4 +8,5 @@ public record PartRequest(@NotBlank @Size(max=40) String partCode,
                           @PositiveOrZero BigDecimal unitPrice,
                           Boolean isActive,
                           @Positive Long createdBy,
-                          @NotEmpty List<@Positive Long> modelIds) {}
+                          @NotEmpty List<@Positive Long> modelIds,
+                          List<@Positive Long> categoryIds) {}
