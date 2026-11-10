@@ -14,6 +14,7 @@ import java.util.Optional;
  */
 @Repository
 public interface MachineRepository extends JpaRepository<Machine, Long> {
+    boolean existsByMachineReferenceNumberIgnoreCase(String machineReferenceNumber);
 
     boolean existsBySerialNumberIgnoreCase(String serialNumber);
 

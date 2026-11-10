@@ -159,7 +159,6 @@ public class TechnicianMobileService {
         return breakdownService.complete(breakdownId, request);
     }
 
-    @Transactional(readOnly = true)
     public List<ServiceScheduleResponse> schedules(Long userId) {
         Long technicianId = technician(userId).getTechnicianId();
         return scheduleService.getAll().stream()
@@ -167,7 +166,6 @@ public class TechnicianMobileService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
     public List<ServiceScheduleResponse> currentMonthSchedules(Long userId) {
         YearMonth currentMonth = YearMonth.now();
         LocalDate firstDay = currentMonth.atDay(1);
@@ -179,7 +177,6 @@ public class TechnicianMobileService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
     public TechnicianOpenWorkResponse openWork(Long userId) {
         List<InstallationJobResponse> installationJobs = installations(userId).stream()
                 .filter(item -> item.status() != InstallationJobStatus.COMPLETED
@@ -197,7 +194,6 @@ public class TechnicianMobileService {
                 installationJobs, breakdownJobs, serviceVisits);
     }
 
-    @Transactional(readOnly = true)
     public TechnicianYtdPerformanceResponse ytdPerformance(Long userId) {
         int year = LocalDate.now().getYear();
         List<InstallationJobResponse> installationJobs = installations(userId).stream()
@@ -228,7 +224,6 @@ public class TechnicianMobileService {
         return new PerformanceMetricResponse(all, cancelled, eligible, completed, percentage);
     }
 
-    @Transactional(readOnly = true)
     public ServiceScheduleResponse schedule(Long userId, Long scheduleId) {
         ensureScheduleOwner(userId, scheduleId);
         return scheduleService.getById(scheduleId);

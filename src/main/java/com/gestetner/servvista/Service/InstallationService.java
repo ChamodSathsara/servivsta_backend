@@ -129,6 +129,15 @@ public class InstallationService {
         return jobResponse(findJob(jobId));
     }
 
+    public InstallationJobResponse attachSiteAndGet(
+            Long jobId, Long customerSiteId, Long performedBy) {
+        InstallationJob job = findJob(jobId);
+        requireExists(siteRepository.existsById(customerSiteId), "Customer site", customerSiteId);
+        job.setCustomerSiteId(customerSiteId);
+        jobRepository.saveAndFlush(job);
+        return jobResponse(findJob(jobId));
+    }
+
     public InstallationJobResponse updateJob(Long jobId, InstallationJobRequest request) {
         InstallationJob job = findJob(jobId);
         validateJobReferences(request);

@@ -18,6 +18,10 @@ import com.gestetner.servvista.Dto.technician.TechnicianYtdPerformanceResponse;
 import com.gestetner.servvista.Dto.reference.MeterCounterTypeResponse;
 import com.gestetner.servvista.Dto.reference.SolutionTypeResponse;
 import com.gestetner.servvista.Dto.meters.MeterReadingResponse;
+import com.gestetner.servvista.Dto.organization.CityResponse;
+import com.gestetner.servvista.Dto.sales.NewSaleWorkflowDtos.WorkflowResponse;
+import com.gestetner.servvista.Service.CityService;
+import com.gestetner.servvista.Service.NewSaleWorkflowService;
 import com.gestetner.servvista.Service.MeterCounterTypeService;
 import com.gestetner.servvista.Service.SolutionTypeService;
 import com.gestetner.servvista.Service.TechnicianMobileService;
@@ -44,14 +48,28 @@ public class TechnicianMobileController {
     private final TechnicianMobileService service;
     private final MeterCounterTypeService meterCounterTypeService;
     private final SolutionTypeService solutionTypeService;
+    private final CityService cityService;
+    private final NewSaleWorkflowService newSaleWorkflowService;
 
     public TechnicianMobileController(
             TechnicianMobileService service,
             MeterCounterTypeService meterCounterTypeService,
-            SolutionTypeService solutionTypeService) {
+            SolutionTypeService solutionTypeService,
+            CityService cityService,
+            NewSaleWorkflowService newSaleWorkflowService) {
         this.service = service;
         this.meterCounterTypeService = meterCounterTypeService;
         this.solutionTypeService = solutionTypeService;
+        this.cityService = cityService;
+        this.newSaleWorkflowService = newSaleWorkflowService;
+    }
+
+    @GetMapping("/cities")
+    public List<CityResponse> cities() { return cityService.getAll(); }
+
+    @GetMapping("/new-sale-workflows")
+    public List<WorkflowResponse> newSaleWorkflows(@AuthenticationPrincipal Jwt jwt) {
+        return newSaleWorkflowService.getForTechnicianUser(userId(jwt));
     }
 
     @GetMapping("/installation-jobs")

@@ -6,12 +6,14 @@ import com.gestetner.servvista.Models.Enums.Identity.Role;
 import com.gestetner.servvista.Models.Enums.Organization.Company;
 import com.gestetner.servvista.Models.entity.identity.Coordinator;
 import com.gestetner.servvista.Models.entity.identity.Finance;
+import com.gestetner.servvista.Models.entity.identity.StoresUser;
 import com.gestetner.servvista.Models.entity.identity.Technician;
 import com.gestetner.servvista.Models.entity.identity.User;
 import com.gestetner.servvista.Models.entity.sales.Salesman;
 import com.gestetner.servvista.Models.entity.organization.UserCompany;
 import com.gestetner.servvista.Repositories.identity.CoordinatorRepository;
 import com.gestetner.servvista.Repositories.identity.FinanceRepository;
+import com.gestetner.servvista.Repositories.identity.StoresUserRepository;
 import com.gestetner.servvista.Repositories.identity.TechnicianRepository;
 import com.gestetner.servvista.Repositories.identity.UserRepository;
 import com.gestetner.servvista.Repositories.sales.SalesmanRepository;
@@ -35,6 +37,7 @@ public class StaffUserService {
     private final TechnicianRepository technicianRepository;
     private final CoordinatorRepository coordinatorRepository;
     private final FinanceRepository financeRepository;
+    private final StoresUserRepository storesUserRepository;
     private final SalesmanRepository salesmanRepository;
     private final UserCompanyRepository userCompanyRepository;
     private final UserMapper userMapper;
@@ -45,6 +48,7 @@ public class StaffUserService {
             TechnicianRepository technicianRepository,
             CoordinatorRepository coordinatorRepository,
             FinanceRepository financeRepository,
+            StoresUserRepository storesUserRepository,
             SalesmanRepository salesmanRepository,
             UserCompanyRepository userCompanyRepository,
             UserMapper userMapper,
@@ -53,6 +57,7 @@ public class StaffUserService {
         this.technicianRepository = technicianRepository;
         this.coordinatorRepository = coordinatorRepository;
         this.financeRepository = financeRepository;
+        this.storesUserRepository = storesUserRepository;
         this.salesmanRepository = salesmanRepository;
         this.userCompanyRepository = userCompanyRepository;
         this.userMapper = userMapper;
@@ -114,6 +119,23 @@ public class StaffUserService {
             finance = financeRepository.saveAndFlush(finance);
             return new FinanceUserResponse(
                     userMapper.toResponse(user), finance.getFinanceId(), companies);
+        } catch (DataIntegrityViolationException exception) {
+            throw duplicateDetails(exception);
+        }
+    }
+
+    public StoresUserResponse createStoresUser(CreateStoresUserRequest request) {
+        try {
+            User user = createUser(request, Role.STORES_USER);
+            List<Company> companies = assignCompanies(user, request);
+            StoresUser storesUser = new StoresUser();
+            storesUser.setUserId(user.getUserId());
+            storesUser.setStoresUserName(user.getUserName());
+            storesUser.setMobileNumber(user.getMobileNumber());
+            storesUser.setEmail(user.getEmail());
+            storesUser = storesUserRepository.saveAndFlush(storesUser);
+            return new StoresUserResponse(
+                    userMapper.toResponse(user), storesUser.getStoresUserId(), companies);
         } catch (DataIntegrityViolationException exception) {
             throw duplicateDetails(exception);
         }
@@ -211,6 +233,27 @@ public class StaffUserService {
         User user = requireLinkedUser(finance.getUser(), "finance", financeId);
         return new FinanceUserResponse(
                 userMapper.toResponse(user), finance.getFinanceId(),
+                getCompanies(user.getUserId()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<StoresUserResponse> getStoresUsers() {
+        return storesUserRepository.findAllWithUser().stream()
+                .map(storesUser -> new StoresUserResponse(
+                        userMapper.toResponse(storesUser.getUser()),
+                        storesUser.getStoresUserId(),
+                        getCompanies(storesUser.getUserId())))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public StoresUserResponse getStoresUser(Long storesUserId) {
+        StoresUser storesUser = storesUserRepository.findById(storesUserId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Stores user profile " + storesUserId + " was not found"));
+        User user = requireLinkedUser(storesUser.getUser(), "stores user", storesUserId);
+        return new StoresUserResponse(
+                userMapper.toResponse(user), storesUser.getStoresUserId(),
                 getCompanies(user.getUserId()));
     }
 
@@ -356,6 +399,41 @@ public class StaffUserService {
                     financeRepository.flush();
                 },
                 "Finance profile " + financeId);
+    }
+
+    public StoresUserResponse updateStoresUser(
+            Long storesUserId, UpdateStoresUserRequest request) {
+        try {
+            StoresUser storesUser = storesUserRepository.findById(storesUserId)
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            "Stores user profile " + storesUserId + " was not found"));
+            User user = requireLinkedUser(storesUser.getUser(), "stores user", storesUserId);
+            updateUser(user, request, Role.STORES_USER);
+
+            storesUser.setStoresUserName(user.getUserName());
+            storesUser.setMobileNumber(user.getMobileNumber());
+            storesUser.setEmail(user.getEmail());
+            storesUserRepository.saveAndFlush(storesUser);
+            return new StoresUserResponse(
+                    userMapper.toResponse(user), storesUser.getStoresUserId(),
+                    getCompanies(user.getUserId()));
+        } catch (DataIntegrityViolationException exception) {
+            throw duplicateDetails(exception);
+        }
+    }
+
+    public void deleteStoresUser(Long storesUserId) {
+        StoresUser storesUser = storesUserRepository.findById(storesUserId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Stores user profile " + storesUserId + " was not found"));
+        User user = requireLinkedUser(storesUser.getUser(), "stores user", storesUserId);
+        deleteProfileAndUser(
+                user,
+                () -> {
+                    storesUserRepository.delete(storesUser);
+                    storesUserRepository.flush();
+                },
+                "Stores user profile " + storesUserId);
     }
 
     public SalesmanUserResponse updateSalesman(

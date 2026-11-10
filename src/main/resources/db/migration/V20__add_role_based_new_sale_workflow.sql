@@ -1,0 +1,20 @@
+CREATE TABLE new_sale_workflow (
+    new_sale_workflow_id BIGINT NOT NULL AUTO_INCREMENT,
+    status VARCHAR(30) NOT NULL,
+    finance_payload LONGTEXT NOT NULL,
+    machine_reference_number VARCHAR(20),
+    despatched_from_stores BOOLEAN DEFAULT FALSE,
+    coordinator_payload LONGTEXT,
+    installation_job_id BIGINT,
+    machine_id BIGINT,
+    created_by BIGINT NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_by BIGINT,
+    updated_at DATETIME,
+    PRIMARY KEY (new_sale_workflow_id),
+    CONSTRAINT uk_new_sale_workflow_machine_ref UNIQUE (machine_reference_number),
+    CONSTRAINT fk_new_sale_workflow_installation FOREIGN KEY (installation_job_id) REFERENCES installation_job (installation_job_id),
+    CONSTRAINT fk_new_sale_workflow_machine FOREIGN KEY (machine_id) REFERENCES machine (machine_id),
+    CONSTRAINT fk_new_sale_workflow_created_by FOREIGN KEY (created_by) REFERENCES users (user_id),
+    CONSTRAINT fk_new_sale_workflow_updated_by FOREIGN KEY (updated_by) REFERENCES users (user_id)
+);

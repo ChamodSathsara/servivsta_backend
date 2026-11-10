@@ -92,6 +92,14 @@ public class UserController {
                 .body(staffUserService.createFinance(request));
     }
 
+    @PostMapping("/stores-user")
+    @Operation(summary = "Create a stores user and stores profile")
+    public ResponseEntity<StoresUserResponse> createStoresUser(
+            @Valid @RequestBody CreateStoresUserRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(staffUserService.createStoresUser(request));
+    }
+
     @PostMapping("/salesman")
     @Operation(summary = "Create a salesman user and salesman profile")
     @ApiResponses({
@@ -174,6 +182,18 @@ public class UserController {
     })
     public ResponseEntity<FinanceUserResponse> getFinance(@PathVariable Long financeId) {
         return ResponseEntity.ok(staffUserService.getFinance(financeId));
+    }
+
+    @GetMapping("/stores-user")
+    @Operation(summary = "Get all stores users")
+    public ResponseEntity<List<StoresUserResponse>> getStoresUsers() {
+        return ResponseEntity.ok(staffUserService.getStoresUsers());
+    }
+
+    @GetMapping("/stores-user/{storesUserId}")
+    @Operation(summary = "Get a stores user by stores user ID")
+    public ResponseEntity<StoresUserResponse> getStoresUser(@PathVariable Long storesUserId) {
+        return ResponseEntity.ok(staffUserService.getStoresUser(storesUserId));
     }
 
     @GetMapping("/salesman")
@@ -286,6 +306,21 @@ public class UserController {
     })
     public ResponseEntity<Void> deleteFinance(@PathVariable Long financeId) {
         staffUserService.deleteFinance(financeId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/stores-user/{storesUserId}")
+    @Operation(summary = "Update a stores user and profile")
+    public ResponseEntity<StoresUserResponse> updateStoresUser(
+            @PathVariable Long storesUserId,
+            @Valid @RequestBody UpdateStoresUserRequest request) {
+        return ResponseEntity.ok(staffUserService.updateStoresUser(storesUserId, request));
+    }
+
+    @DeleteMapping("/stores-user/{storesUserId}")
+    @Operation(summary = "Delete a stores user and profile")
+    public ResponseEntity<Void> deleteStoresUser(@PathVariable Long storesUserId) {
+        staffUserService.deleteStoresUser(storesUserId);
         return ResponseEntity.noContent().build();
     }
 

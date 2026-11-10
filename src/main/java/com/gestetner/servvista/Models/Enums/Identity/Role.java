@@ -5,6 +5,7 @@ public enum Role {
     COORDINATOR,
     SALESMAN,
     FINANCE,
+    STORES_USER,
     ADMIN,
     MACHINE
 }

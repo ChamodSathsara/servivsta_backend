@@ -115,6 +115,18 @@ public class NewSaleService {
     }
 
     public NewSaleResponse create(NewSaleRequest request) {
+        return create(request, null, null);
+    }
+
+    public NewSaleResponse completeWorkflow(
+            NewSaleRequest request, Long existingInstallationJobId,
+            String machineReferenceNumber) {
+        return create(request, existingInstallationJobId, machineReferenceNumber);
+    }
+
+    private NewSaleResponse create(
+            NewSaleRequest request, Long existingInstallationJobId,
+            String machineReferenceNumber) {
         validate(request);
         LocalDateTime now = LocalDateTime.now();
         String phase = "customer_site";
@@ -124,13 +136,15 @@ public class NewSaleService {
             phase = "site_contact";
             SiteContact contact = createSiteContact(request, site.getCustomerSiteId(), now);
             phase = "machine";
-            Machine machine = createMachine(request, site.getCustomerSiteId(), now);
+            Machine machine = createMachine(request, site.getCustomerSiteId(), now, machineReferenceNumber);
             phase = "machine_status_history";
             MachineStatusHistory machineHistory = createMachineStatusHistory(machine, request, now);
 
             phase = "installation_job_and_status_history";
-            InstallationJobResponse installation = installationService.createJob(
-                    installationRequest(request, site.getCustomerSiteId()));
+            InstallationJobResponse installation = existingInstallationJobId == null
+                    ? installationService.createJob(installationRequest(request, site.getCustomerSiteId()))
+                    : installationService.attachSiteAndGet(
+                            existingInstallationJobId, site.getCustomerSiteId(), request.performedBy());
             phase = "machine_agreement_and_status_history";
             MachineAgreementResponse agreement = agreementService.create(
                     agreementRequest(request, machine.getMachineId(), installation.installationJobId()));
@@ -268,11 +282,13 @@ public class NewSaleService {
     }
 
     private Machine createMachine(
-            NewSaleRequest request, Long customerSiteId, LocalDateTime now) {
+            NewSaleRequest request, Long customerSiteId, LocalDateTime now,
+            String requestedReferenceNumber) {
         NewSaleRequest.MachineData data = request.machine();
         Machine machine = new Machine();
-        machine.setMachineReferenceNumber(
-                "Q" + String.format("%06d", machineRepository.findMaximumReferenceSequence() + 1));
+        machine.setMachineReferenceNumber(requestedReferenceNumber == null || requestedReferenceNumber.isBlank()
+                ? "Q" + String.format("%06d", machineRepository.findMaximumReferenceSequence() + 1)
+                : requestedReferenceNumber.trim().toUpperCase(Locale.ROOT));
         machine.setSerialNumber(data.serialNumber().trim().toUpperCase(Locale.ROOT));
         machine.setCompany(data.company());
         machine.setDivision(data.division());
