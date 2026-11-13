@@ -16,6 +16,7 @@ import com.gestetner.servvista.Dto.technician.TechnicianInstallationStatusReques
 import com.gestetner.servvista.Dto.technician.TechnicianOpenWorkResponse;
 import com.gestetner.servvista.Dto.technician.TechnicianYtdPerformanceResponse;
 import com.gestetner.servvista.Dto.technician.TechnicianEstimateOptionsResponse;
+import com.gestetner.servvista.Dto.technician.TechnicianEstimateRequest;
 import com.gestetner.servvista.Dto.reference.MeterCounterTypeResponse;
 import com.gestetner.servvista.Dto.reference.SolutionTypeResponse;
 import com.gestetner.servvista.Dto.meters.MeterReadingResponse;
@@ -195,7 +196,7 @@ public class TechnicianMobileController {
     @PostMapping("/estimates")
     public EstimateResponse createEstimate(
             @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody EstimateRequest request) {
+            @Valid @RequestBody TechnicianEstimateRequest request) {
         return service.createEstimate(userId(jwt), request);
     }
 

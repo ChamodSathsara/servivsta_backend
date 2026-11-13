@@ -19,6 +19,7 @@ import com.gestetner.servvista.Dto.technician.TechnicianOpenWorkResponse;
 import com.gestetner.servvista.Dto.technician.PerformanceMetricResponse;
 import com.gestetner.servvista.Dto.technician.TechnicianYtdPerformanceResponse;
 import com.gestetner.servvista.Dto.technician.TechnicianEstimateMachineOption;
+import com.gestetner.servvista.Dto.technician.TechnicianEstimateRequest;
 import com.gestetner.servvista.Models.Enums.Breakdowns.BreakdownAssignmentStatus;
 import com.gestetner.servvista.Models.Enums.Breakdowns.BreakdownStatus;
 import com.gestetner.servvista.Models.Enums.Installations.InstallationJobStatus;
@@ -270,7 +271,7 @@ public class TechnicianMobileService {
         return scheduleService.complete(scheduleId, request);
     }
 
-    public EstimateResponse createEstimate(Long userId, EstimateRequest request) {
+    public EstimateResponse createEstimate(Long userId, TechnicianEstimateRequest request) {
         Technician technician = technician(userId);
         if (request.breakdownId() != null) {
             ensureBreakdownOwner(userId, request.breakdownId());

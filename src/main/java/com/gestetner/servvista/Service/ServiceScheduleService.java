@@ -46,6 +46,7 @@ public class ServiceScheduleService {
     private final SolutionTypeRepository solutionTypeRepository;
     private final CustomerSiteRepository siteRepository;
     private final JobPartyDetailsService partyDetailsService;
+    private final ServiceScheduleDueStatusService dueStatusService;
 
     public ServiceScheduleService(
             ServiceScheduleRepository scheduleRepository,
@@ -58,7 +59,8 @@ public class ServiceScheduleService {
             UserRepository userRepository,
             SolutionTypeRepository solutionTypeRepository,
             CustomerSiteRepository siteRepository,
-            JobPartyDetailsService partyDetailsService) {
+            JobPartyDetailsService partyDetailsService,
+            ServiceScheduleDueStatusService dueStatusService) {
         this.scheduleRepository = scheduleRepository;
         this.agreementRepository = agreementRepository;
         this.machineRepository = machineRepository;
@@ -70,6 +72,7 @@ public class ServiceScheduleService {
         this.solutionTypeRepository = solutionTypeRepository;
         this.siteRepository = siteRepository;
         this.partyDetailsService = partyDetailsService;
+        this.dueStatusService = dueStatusService;
     }
 
     public List<ServiceScheduleResponse> generateForSubmission(
@@ -215,7 +218,7 @@ public class ServiceScheduleService {
     }
 
     private void markDueVisits() {
-        scheduleRepository.markScheduledVisitsDue(LocalDate.now());
+        dueStatusService.refreshDueStatuses();
     }
 
     private ServiceVisitMeterReadingResponse meterReadingResponse(MeterReading reading) {
