@@ -18,6 +18,7 @@ import com.gestetner.servvista.Dto.technician.ChangeOwnPasswordRequest;
 import com.gestetner.servvista.Dto.technician.TechnicianOpenWorkResponse;
 import com.gestetner.servvista.Dto.technician.PerformanceMetricResponse;
 import com.gestetner.servvista.Dto.technician.TechnicianYtdPerformanceResponse;
+import com.gestetner.servvista.Dto.technician.TechnicianEstimateMachineOption;
 import com.gestetner.servvista.Models.Enums.Breakdowns.BreakdownAssignmentStatus;
 import com.gestetner.servvista.Models.Enums.Breakdowns.BreakdownStatus;
 import com.gestetner.servvista.Models.Enums.Installations.InstallationJobStatus;
@@ -39,6 +40,7 @@ import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.LinkedHashSet;
 
 @Service
 @Transactional
@@ -174,6 +176,31 @@ public class TechnicianMobileService {
                 .filter(item -> item.expectedVisitDate() != null
                         && !item.expectedVisitDate().isBefore(firstDay)
                         && !item.expectedVisitDate().isAfter(lastDay))
+                .toList();
+    }
+
+    public List<ServiceScheduleResponse> recentSchedules(Long userId, int days) {
+        if (days < 1 || days > 90) {
+            throw new IllegalArgumentException("days must be between 1 and 90");
+        }
+        LocalDate cutoff = LocalDate.now().minusDays(days);
+        return schedules(userId).stream()
+                .filter(item -> item.expectedVisitDate() != null
+                        && !item.expectedVisitDate().isBefore(cutoff)
+                        && !item.expectedVisitDate().isAfter(LocalDate.now()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<TechnicianEstimateMachineOption> estimateMachines(Long userId) {
+        LinkedHashSet<Long> machineIds = new LinkedHashSet<>();
+        breakdowns(userId).forEach(item -> machineIds.add(item.machineId()));
+        schedules(userId).forEach(item -> machineIds.add(item.machineId()));
+        return machineRepository.findAllById(machineIds).stream()
+                .map(machine -> new TechnicianEstimateMachineOption(
+                        machine.getMachineId(), machine.getMachineReferenceNumber(), machine.getModelId(),
+                        machine.getModel() == null ? null : machine.getModel().getModelNumber(),
+                        machine.getModel() == null ? null : machine.getModel().getModelName()))
                 .toList();
     }
 

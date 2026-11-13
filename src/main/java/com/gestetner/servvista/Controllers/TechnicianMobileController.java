@@ -200,11 +200,19 @@ public class TechnicianMobileController {
     }
 
     @GetMapping("/estimate-options")
-    public TechnicianEstimateOptionsResponse estimateOptions() {
+    public TechnicianEstimateOptionsResponse estimateOptions(@AuthenticationPrincipal Jwt jwt) {
         return new TechnicianEstimateOptionsResponse(
+                service.estimateMachines(userId(jwt)),
                 machineModelService.getAll().stream().filter(x -> Boolean.TRUE.equals(x.isActive())).toList(),
                 partCategoryService.getAll().stream().filter(x -> Boolean.TRUE.equals(x.isActive())).toList(),
                 partService.getAll().stream().filter(x -> Boolean.TRUE.equals(x.isActive())).toList());
+    }
+
+    @GetMapping("/service-schedules/recent")
+    public List<ServiceScheduleResponse> recentSchedules(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "30") int days) {
+        return service.recentSchedules(userId(jwt), days);
     }
 
     @PatchMapping("/password")

@@ -6,6 +6,7 @@ import com.gestetner.servvista.Dto.parts.PartResponse;
 import java.util.List;
 
 public record TechnicianEstimateOptionsResponse(
+        List<TechnicianEstimateMachineOption> machines,
         List<MachineModelResponse> models,
         List<PartCategoryResponse> categories,
         List<PartResponse> parts) {
