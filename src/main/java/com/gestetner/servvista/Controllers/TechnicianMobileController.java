@@ -15,6 +15,7 @@ import com.gestetner.servvista.Dto.technician.ChangeOwnPasswordRequest;
 import com.gestetner.servvista.Dto.technician.TechnicianInstallationStatusRequest;
 import com.gestetner.servvista.Dto.technician.TechnicianOpenWorkResponse;
 import com.gestetner.servvista.Dto.technician.TechnicianYtdPerformanceResponse;
+import com.gestetner.servvista.Dto.technician.TechnicianEstimateOptionsResponse;
 import com.gestetner.servvista.Dto.reference.MeterCounterTypeResponse;
 import com.gestetner.servvista.Dto.reference.SolutionTypeResponse;
 import com.gestetner.servvista.Dto.meters.MeterReadingResponse;
@@ -25,6 +26,9 @@ import com.gestetner.servvista.Service.NewSaleWorkflowService;
 import com.gestetner.servvista.Service.MeterCounterTypeService;
 import com.gestetner.servvista.Service.SolutionTypeService;
 import com.gestetner.servvista.Service.TechnicianMobileService;
+import com.gestetner.servvista.Service.MachineModelService;
+import com.gestetner.servvista.Service.PartCategoryService;
+import com.gestetner.servvista.Service.PartService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -50,18 +54,27 @@ public class TechnicianMobileController {
     private final SolutionTypeService solutionTypeService;
     private final CityService cityService;
     private final NewSaleWorkflowService newSaleWorkflowService;
+    private final MachineModelService machineModelService;
+    private final PartCategoryService partCategoryService;
+    private final PartService partService;
 
     public TechnicianMobileController(
             TechnicianMobileService service,
             MeterCounterTypeService meterCounterTypeService,
             SolutionTypeService solutionTypeService,
             CityService cityService,
-            NewSaleWorkflowService newSaleWorkflowService) {
+            NewSaleWorkflowService newSaleWorkflowService,
+            MachineModelService machineModelService,
+            PartCategoryService partCategoryService,
+            PartService partService) {
         this.service = service;
         this.meterCounterTypeService = meterCounterTypeService;
         this.solutionTypeService = solutionTypeService;
         this.cityService = cityService;
         this.newSaleWorkflowService = newSaleWorkflowService;
+        this.machineModelService = machineModelService;
+        this.partCategoryService = partCategoryService;
+        this.partService = partService;
     }
 
     @GetMapping("/cities")
@@ -184,6 +197,14 @@ public class TechnicianMobileController {
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody EstimateRequest request) {
         return service.createEstimate(userId(jwt), request);
+    }
+
+    @GetMapping("/estimate-options")
+    public TechnicianEstimateOptionsResponse estimateOptions() {
+        return new TechnicianEstimateOptionsResponse(
+                machineModelService.getAll().stream().filter(x -> Boolean.TRUE.equals(x.isActive())).toList(),
+                partCategoryService.getAll().stream().filter(x -> Boolean.TRUE.equals(x.isActive())).toList(),
+                partService.getAll().stream().filter(x -> Boolean.TRUE.equals(x.isActive())).toList());
     }
 
     @PatchMapping("/password")

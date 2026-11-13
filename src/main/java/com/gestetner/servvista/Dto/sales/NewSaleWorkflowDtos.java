@@ -65,5 +65,8 @@ public final class NewSaleWorkflowDtos {
             java.util.List<com.gestetner.servvista.Dto.customers.CustomerResponse> customers,
             java.util.List<com.gestetner.servvista.Dto.catalog.DealerResponse> dealers,
             java.util.List<com.gestetner.servvista.Dto.catalog.RepResponse> representatives,
-            java.util.List<com.gestetner.servvista.Dto.identity.TechnicianUserResponse> technicians) {}
+            java.util.List<com.gestetner.servvista.Dto.identity.TechnicianUserResponse> technicians,
+            java.util.List<com.gestetner.servvista.Dto.catalog.ManufacturerResponse> manufacturers,
+            java.util.List<com.gestetner.servvista.Dto.catalog.MachineTypeResponse> machineTypes,
+            java.util.List<com.gestetner.servvista.Dto.identity.SalesmanUserResponse> salesmen) {}
 }
