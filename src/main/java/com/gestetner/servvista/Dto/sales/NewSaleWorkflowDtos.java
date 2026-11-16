@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.*;
+import java.util.List;
 
 public final class NewSaleWorkflowDtos {
     private NewSaleWorkflowDtos() {}
@@ -21,7 +22,15 @@ public final class NewSaleWorkflowDtos {
             @NotNull Long customerId, @NotNull WarrantyType warrantyType,
             @NotNull LocalDate warrantyStart, @NotNull LocalDate warrantyEnd,
             Integer durationMonths, String warrantyNote, @NotNull Division division,
+            @NotNull @Valid List<AccessoryRequest> accessories,
             @NotNull @Positive Long performedBy) {}
+
+    public record AccessoryRequest(
+            @NotBlank String accessoryId,
+            @NotBlank @Size(max=150) String name,
+            @Size(max=100) String serialNumber,
+            @NotNull @Positive Integer quantity,
+            @Size(max=500) String note) {}
 
     public record StoresStageRequest(
             @NotBlank @Size(max=20) String machineReferenceNumber,
@@ -51,13 +60,15 @@ public final class NewSaleWorkflowDtos {
             @NotNull @Valid SiteContactData siteContact,
             @NotNull MachineAssignmentType assignmentType,
             @NotNull LocalDate assignedFrom,
+            @NotNull List<@NotBlank String> receivedAccessoryIds,
             @NotNull @Positive Long performedBy) {}
 
     public record WorkflowResponse(
             Long workflowId, NewSaleWorkflowStatus status,
             FinanceStageRequest finance, String machineReferenceNumber,
             Boolean despatchedFromStores, CoordinatorStageRequest coordinator,
-            Long installationJobId, Long machineId, LocalDateTime createdAt, LocalDateTime updatedAt) {}
+            TechnicianStageRequest technician, Long installationJobId, Long machineId,
+            LocalDateTime createdAt, LocalDateTime updatedAt) {}
 
     public record WorkflowOptionsResponse(
             java.util.List<com.gestetner.servvista.Dto.catalog.MachineModelResponse> models,

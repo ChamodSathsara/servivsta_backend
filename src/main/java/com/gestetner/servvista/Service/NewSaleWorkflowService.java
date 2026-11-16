@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.HashSet;
 
 @Service @Transactional
 public class NewSaleWorkflowService {
@@ -99,6 +100,11 @@ public class NewSaleWorkflowService {
     public NewSaleResponse completeInstallation(Long id, TechnicianStageRequest request) {
         NewSaleWorkflow w=require(id, NewSaleWorkflowStatus.AWAITING_INSTALLATION);
         FinanceStageRequest f=finance(w); CoordinatorStageRequest c=coordinator(w);
+        var accessories=f.accessories()==null?List.<AccessoryRequest>of():f.accessories();
+        var expectedAccessoryIds=accessories.stream().map(AccessoryRequest::accessoryId).collect(java.util.stream.Collectors.toSet());
+        var receivedAccessoryIds=new HashSet<>(request.receivedAccessoryIds());
+        if (!receivedAccessoryIds.equals(expectedAccessoryIds))
+            throw new IllegalArgumentException("Confirm every supplied accessory before completing the installation");
         if (!f.customerId().equals(request.customerSite().customerId()))
             throw new IllegalArgumentException("Installation site must belong to the selected customer");
         NewSaleRequest sale=new NewSaleRequest(
@@ -128,7 +134,8 @@ public class NewSaleWorkflowService {
         installationService.updateSubmission(submission.installationSubmissionId(),submissionRequest);
         installationService.completeJob(w.getInstallationJobId(),
                 new CompleteInstallationJobRequest(request.performedBy(),"Installation completed"));
-        w.setMachineId(result.machineId()); w.setStatus(NewSaleWorkflowStatus.COMPLETED); touch(w,request.performedBy());
+        w.setTechnicianPayload(write(request)); w.setMachineId(result.machineId());
+        w.setStatus(NewSaleWorkflowStatus.COMPLETED); touch(w,request.performedBy());
         repository.saveAndFlush(w); return result;
     }
 
@@ -139,5 +146,6 @@ public class NewSaleWorkflowService {
     private <T>T read(String value,Class<T> type){try{return value==null?null:objectMapper.readValue(value,type);}catch(JsonProcessingException e){throw new IllegalStateException("Could not read workflow data",e);}}
     private FinanceStageRequest finance(NewSaleWorkflow w){return read(w.getFinancePayload(),FinanceStageRequest.class);}
     private CoordinatorStageRequest coordinator(NewSaleWorkflow w){return read(w.getCoordinatorPayload(),CoordinatorStageRequest.class);}
-    private WorkflowResponse response(NewSaleWorkflow w){return new WorkflowResponse(w.getNewSaleWorkflowId(),w.getStatus(),finance(w),w.getMachineReferenceNumber(),w.getDespatchedFromStores(),coordinator(w),w.getInstallationJobId(),w.getMachineId(),w.getCreatedAt(),w.getUpdatedAt());}
+    private TechnicianStageRequest technician(NewSaleWorkflow w){return read(w.getTechnicianPayload(),TechnicianStageRequest.class);}
+    private WorkflowResponse response(NewSaleWorkflow w){return new WorkflowResponse(w.getNewSaleWorkflowId(),w.getStatus(),finance(w),w.getMachineReferenceNumber(),w.getDespatchedFromStores(),coordinator(w),technician(w),w.getInstallationJobId(),w.getMachineId(),w.getCreatedAt(),w.getUpdatedAt());}
 }

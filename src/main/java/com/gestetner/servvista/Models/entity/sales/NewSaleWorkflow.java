@@ -16,6 +16,7 @@ public class NewSaleWorkflow {
     @Column(name = "machine_reference_number", unique = true, length = 20) private String machineReferenceNumber;
     @Column(name = "despatched_from_stores") private Boolean despatchedFromStores;
     @Column(name = "coordinator_payload", columnDefinition = "longtext") private String coordinatorPayload;
+    @Column(name = "technician_payload", columnDefinition = "longtext") private String technicianPayload;
     @Column(name = "installation_job_id") private Long installationJobId;
     @Column(name = "machine_id") private Long machineId;
     @Column(name = "created_by", nullable = false) private Long createdBy;
