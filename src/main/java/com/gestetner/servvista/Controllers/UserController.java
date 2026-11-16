@@ -101,6 +101,7 @@ public class UserController {
     }
 
     @PostMapping("/salesman")
+    @PreAuthorize("hasAnyRole('ADMIN','FINANCE')")
     @Operation(summary = "Create a salesman user and salesman profile")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Salesman user created"),

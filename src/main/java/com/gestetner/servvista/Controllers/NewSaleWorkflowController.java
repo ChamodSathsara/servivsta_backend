@@ -11,6 +11,7 @@ import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/new-sales/workflow")
@@ -24,6 +25,7 @@ public class NewSaleWorkflowController {
     private final com.gestetner.servvista.Service.StaffUserService staffUserService;
     private final com.gestetner.servvista.Service.ManufacturerService manufacturerService;
     private final com.gestetner.servvista.Service.MachineTypeService machineTypeService;
+    private final com.gestetner.servvista.Service.NewSaleExcelService excelService;
     public NewSaleWorkflowController(NewSaleWorkflowService service,
             com.gestetner.servvista.Service.MachineModelService machineModelService,
             com.gestetner.servvista.Service.MachineInvoiceService machineInvoiceService,
@@ -32,7 +34,16 @@ public class NewSaleWorkflowController {
             com.gestetner.servvista.Service.RepService repService,
             com.gestetner.servvista.Service.StaffUserService staffUserService,
             com.gestetner.servvista.Service.ManufacturerService manufacturerService,
-            com.gestetner.servvista.Service.MachineTypeService machineTypeService){this.service=service;this.machineModelService=machineModelService;this.machineInvoiceService=machineInvoiceService;this.customerService=customerService;this.dealerService=dealerService;this.repService=repService;this.staffUserService=staffUserService;this.manufacturerService=manufacturerService;this.machineTypeService=machineTypeService;}
+            com.gestetner.servvista.Service.MachineTypeService machineTypeService,
+            com.gestetner.servvista.Service.NewSaleExcelService excelService){this.service=service;this.machineModelService=machineModelService;this.machineInvoiceService=machineInvoiceService;this.customerService=customerService;this.dealerService=dealerService;this.repService=repService;this.staffUserService=staffUserService;this.manufacturerService=manufacturerService;this.machineTypeService=machineTypeService;this.excelService=excelService;}
+
+    @GetMapping(value="/finance/template",produces="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    @PreAuthorize("hasAnyRole('ADMIN','FINANCE')")
+    public ResponseEntity<byte[]> financeTemplate(){return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=finance-new-sales-template.xlsx").body(excelService.template());}
+
+    @PostMapping(value="/finance/import",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('ADMIN','FINANCE')")
+    public com.gestetner.servvista.Service.NewSaleExcelService.ImportResult financeImport(@RequestPart("file") MultipartFile file,@RequestParam Long performedBy){return excelService.importFile(file,performedBy);}
 
     @GetMapping("/options")
     @PreAuthorize("hasAnyRole('ADMIN','FINANCE','STORES_USER','COORDINATOR')")
