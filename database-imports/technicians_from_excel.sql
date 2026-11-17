@@ -2,7 +2,7 @@
 -- Run V22 before this script.
 --
 -- IMPORTANT VALIDATION ITEMS FROM THE SOURCE FILE:
--- 1. Tech code 8050 is assigned to two different people. Correct one value below.
+-- 1. AMAROSA's corrected tech code is 80501.
 -- 2. The eight division corrections supplied after the workbook review are applied below.
 -- 3. Missing emails receive tech.<tech_code>@servvista.local for internal account storage.
 --    Replace those values here if real unique email addresses are available.
@@ -10,6 +10,8 @@
 --
 -- Password for every imported technician: 00000000
 -- The database stores the BCrypt hash below, never the plain-text password.
+
+USE servvista_new;
 
 DROP TEMPORARY TABLE IF EXISTS tmp_technician_import;
 CREATE TEMPORARY TABLE tmp_technician_import (
@@ -26,7 +28,9 @@ CREATE TEMPORARY TABLE tmp_technician_import (
     company_fintech TINYINT(1) NOT NULL,
     division_outright TINYINT(1) NOT NULL,
     division_rental TINYINT(1) NOT NULL
-);
+) ENGINE = InnoDB
+  DEFAULT CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
 
 INSERT INTO tmp_technician_import (
     source_row, tech_code, technician_name, mobile_number, email, area, cities,
@@ -58,7 +62,7 @@ INSERT INTO tmp_technician_import (
 (29, '3158', 'M.CHAMILA JAYASASANKA', '777787404', '', 'SUBURB', 'KADAWATHA , KALANIYA , BIYAGAMA , WELLAMPITIYA', 1, 'TEAM_LEADER', 1, 0, 1, 0),
 (30, '8047', 'SELVARAJ VIVEK', '773849539', 'selvaraj@gestetnersl.com', 'SUBURB', 'WATTALA , MABOLA , JAELA , RAGAMA , GANEMULLA', 1, 'TECHNICIAN', 1, 0, 1, 0),
 (31, '2030', 'THUSHARA JAYANTHA', '770689462', '', 'SUBURB', 'BATTARAMULLA , MAHARAGAMA , KOTTAWA , HOMAGAMA , RAJAGIRIYA', 1, 'TECHNICIAN', 0, 1, 1, 0),
-(32, '8050', 'AMAROSA', '740197880', '', 'SUBURB', 'WATTALA , MABOLA , JAELA , RAGAMA , GANEMULLA , GAMPAHA', 1, 'TECHNICIAN', 0, 1, 1, 0),
+(32, '80501', 'AMAROSA', '740197880', '', 'SUBURB', 'WATTALA , MABOLA , JAELA , RAGAMA , GANEMULLA , GAMPAHA', 1, 'TECHNICIAN', 0, 1, 1, 0),
 (36, '3121', 'KALANA BANDARA', '777788965', '', 'OUTSTATION', 'KANDY', 1, 'TEAM_LEADER', 1, 0, 1, 1),
 (37, '1024', 'E.M.LAKSHMAN', '773530677', '', 'OUTSTATION', 'KANDY, PERADENIYA', 1, 'TECHNICIAN', 1, 0, 1, 1),
 (38, '3138', 'W.G.RUMESH', '772104586', '', 'OUTSTATION', 'MATHALE,KATUGASTHOTA', 1, 'TECHNICIAN', 1, 0, 1, 1),
@@ -110,159 +114,96 @@ FROM tmp_technician_import
 WHERE division_outright = 0 AND division_rental = 0
 ORDER BY source_row;
 
--- Example corrections (remove the leading -- and supply the correct values):
--- UPDATE tmp_technician_import SET tech_code = 'CORRECT_CODE' WHERE source_row = 32;
-
-DROP PROCEDURE IF EXISTS import_technicians_from_staging;
-DELIMITER $$
-
-CREATE PROCEDURE import_technicians_from_staging()
-BEGIN
-    DECLARE admin_user_id BIGINT;
-
-    IF EXISTS (
-        SELECT 1
-        FROM tmp_technician_import
-        GROUP BY tech_code
-        HAVING COUNT(*) > 1
-    ) THEN
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Import stopped: duplicate tech codes exist in staging';
-    END IF;
-
-    IF EXISTS (
-        SELECT 1
-        FROM tmp_technician_import
-        WHERE division_outright = 0 AND division_rental = 0
-    ) THEN
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Import stopped: one or more technicians have no division';
-    END IF;
-
-    IF EXISTS (
-        SELECT 1
-        FROM tmp_technician_import
-        WHERE company_gestetner = 0 AND company_fintech = 0
-    ) THEN
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Import stopped: one or more technicians have no company';
-    END IF;
-
-    IF EXISTS (
-        SELECT 1
-        FROM tmp_technician_import s
-        JOIN technician t ON t.tech_code = s.tech_code
-    ) THEN
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Import stopped: a staged tech code already exists';
-    END IF;
-
-    IF EXISTS (
-        SELECT 1
-        FROM tmp_technician_import s
-        JOIN users u ON LOWER(u.email) = LOWER(
-            COALESCE(NULLIF(TRIM(s.email), ''),
-                CONCAT('tech.', LOWER(s.tech_code), '@servvista.local'))
-        )
-    ) THEN
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Import stopped: a staged email already exists';
-    END IF;
-
-    SELECT user_id INTO admin_user_id
+SET @admin_user_id := (
+    SELECT user_id
     FROM users
     WHERE role = 'ADMIN' AND is_active = 1
     ORDER BY user_id
-    LIMIT 1;
+    LIMIT 1
+);
 
-    IF admin_user_id IS NULL THEN
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Import stopped: no active ADMIN account exists';
-    END IF;
+START TRANSACTION;
 
-    START TRANSACTION;
+INSERT INTO users (
+    user_name, mobile_number, email, password_hash, is_active,
+    division, area, created_at, created_by, role
+)
+SELECT
+    TRIM(technician_name),
+    CASE
+        WHEN TRIM(mobile_number) REGEXP '^[0-9]{9}$'
+            THEN CONCAT('0', TRIM(mobile_number))
+        ELSE NULLIF(TRIM(mobile_number), '')
+    END,
+    COALESCE(NULLIF(LOWER(TRIM(email)), ''),
+        CONCAT('tech.', LOWER(tech_code), '@servvista.local')),
+    '$2a$12$3mgVb3FWCRFru2DfzuHJRuL1VPXXgnXPZr1LxVnn2Pkl1SMFEEQxS',
+    is_active,
+    CASE WHEN division_outright = 1 THEN 'OUTRIGHT' ELSE 'RENTAL' END,
+    area,
+    CURRENT_TIMESTAMP,
+    @admin_user_id,
+    'TECHNICIAN'
+FROM tmp_technician_import
+ORDER BY source_row;
 
-    INSERT INTO users (
-        user_name, mobile_number, email, password_hash, is_active,
-        division, area, created_at, created_by, role
-    )
-    SELECT
-        TRIM(technician_name),
-        CASE
-            WHEN TRIM(mobile_number) REGEXP '^[0-9]{9}$'
-                THEN CONCAT('0', TRIM(mobile_number))
-            ELSE NULLIF(TRIM(mobile_number), '')
-        END,
-        COALESCE(NULLIF(LOWER(TRIM(email)), ''),
-            CONCAT('tech.', LOWER(tech_code), '@servvista.local')),
-        '$2a$12$3mgVb3FWCRFru2DfzuHJRuL1VPXXgnXPZr1LxVnn2Pkl1SMFEEQxS',
-        is_active,
-        CASE WHEN division_outright = 1 THEN 'OUTRIGHT' ELSE 'RENTAL' END,
-        area,
-        CURRENT_TIMESTAMP,
-        admin_user_id,
-        'TECHNICIAN'
-    FROM tmp_technician_import
-    ORDER BY source_row;
+INSERT INTO technician (
+    tech_code, user_id, technician_name, mobile_number, email,
+    division, area, cities, technician_role
+)
+SELECT
+    staged_technician.tech_code,
+    technician_user.user_id,
+    staged_technician.technician_name,
+    technician_user.mobile_number,
+    technician_user.email,
+    technician_user.division,
+    staged_technician.area,
+    NULLIF(TRIM(staged_technician.cities), ''),
+    staged_technician.technician_role
+FROM tmp_technician_import staged_technician
+JOIN users technician_user
+    ON HEX(LOWER(technician_user.email)) = HEX(LOWER(
+        COALESCE(NULLIF(TRIM(staged_technician.email), ''),
+            CONCAT('tech.', LOWER(staged_technician.tech_code), '@servvista.local'))
+    ));
 
-    INSERT INTO technician (
-        tech_code, user_id, technician_name, mobile_number, email,
-        division, area, cities, technician_role
-    )
-    SELECT
-        s.tech_code,
-        u.user_id,
-        s.technician_name,
-        u.mobile_number,
-        u.email,
-        u.division,
-        s.area,
-        NULLIF(TRIM(s.cities), ''),
-        s.technician_role
-    FROM tmp_technician_import s
-    JOIN users u ON LOWER(u.email) = LOWER(
-        COALESCE(NULLIF(TRIM(s.email), ''),
-            CONCAT('tech.', LOWER(s.tech_code), '@servvista.local'))
-    )
-    ORDER BY s.source_row;
+INSERT INTO user_company (user_id, company)
+SELECT gestetner_user.user_id, 'GESTETNER'
+FROM tmp_technician_import gestetner_stage
+JOIN users gestetner_user
+    ON HEX(LOWER(gestetner_user.email)) = HEX(LOWER(
+        COALESCE(NULLIF(TRIM(gestetner_stage.email), ''),
+            CONCAT('tech.', LOWER(gestetner_stage.tech_code), '@servvista.local'))
+    ))
+WHERE gestetner_stage.company_gestetner = 1;
 
-    INSERT INTO user_company (user_id, company)
-    SELECT u.user_id, 'GESTETNER'
-    FROM tmp_technician_import s
-    JOIN users u ON LOWER(u.email) = LOWER(
-        COALESCE(NULLIF(TRIM(s.email), ''),
-            CONCAT('tech.', LOWER(s.tech_code), '@servvista.local'))
-    )
-    WHERE s.company_gestetner = 1
-    UNION ALL
-    SELECT u.user_id, 'FINTECH'
-    FROM tmp_technician_import s
-    JOIN users u ON LOWER(u.email) = LOWER(
-        COALESCE(NULLIF(TRIM(s.email), ''),
-            CONCAT('tech.', LOWER(s.tech_code), '@servvista.local'))
-    )
-    WHERE s.company_fintech = 1;
+INSERT INTO user_company (user_id, company)
+SELECT fintech_user.user_id, 'FINTECH'
+FROM tmp_technician_import fintech_stage
+JOIN users fintech_user
+    ON HEX(LOWER(fintech_user.email)) = HEX(LOWER(
+        COALESCE(NULLIF(TRIM(fintech_stage.email), ''),
+            CONCAT('tech.', LOWER(fintech_stage.tech_code), '@servvista.local'))
+    ))
+WHERE fintech_stage.company_fintech = 1;
 
-    INSERT INTO technician_division (technician_id, division)
-    SELECT t.technician_id, 'OUTRIGHT'
-    FROM tmp_technician_import s
-    JOIN technician t ON t.tech_code = s.tech_code
-    WHERE s.division_outright = 1
-    UNION ALL
-    SELECT t.technician_id, 'RENTAL'
-    FROM tmp_technician_import s
-    JOIN technician t ON t.tech_code = s.tech_code
-    WHERE s.division_rental = 1;
+INSERT INTO technician_division (technician_id, division)
+SELECT outright_technician.technician_id, 'OUTRIGHT'
+FROM tmp_technician_import outright_stage
+JOIN technician outright_technician
+    ON HEX(outright_technician.tech_code) = HEX(outright_stage.tech_code)
+WHERE outright_stage.division_outright = 1;
 
-    COMMIT;
-END$$
+INSERT INTO technician_division (technician_id, division)
+SELECT rental_technician.technician_id, 'RENTAL'
+FROM tmp_technician_import rental_stage
+JOIN technician rental_technician
+    ON HEX(rental_technician.tech_code) = HEX(rental_stage.tech_code)
+WHERE rental_stage.division_rental = 1;
 
-DELIMITER ;
+COMMIT;
 
-CALL import_technicians_from_staging();
-
--- These cleanup statements run after a successful import.
-DROP PROCEDURE import_technicians_from_staging;
 DROP TEMPORARY TABLE tmp_technician_import;
 
 -- Final verification.
