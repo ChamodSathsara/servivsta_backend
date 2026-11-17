@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Service @Transactional
 public class MachineModelService {
@@ -63,25 +65,36 @@ public class MachineModelService {
         return new ReferenceData(manufacturer, machineType);
     }
     private void apply(MachineModel m, MachineModelRequest r, String number, boolean create) {
-        m.setCompany(r.company()); m.setManufacturerId(r.manufacturerId()); m.setMachineTypeId(r.machineTypeId());
+        Set<com.gestetner.servvista.Models.Enums.Organization.Company> companies = r.companies() == null || r.companies().isEmpty()
+                ? Set.of(r.company()) : r.companies();
+        if (companies == null || companies.isEmpty() || companies.contains(null)) {
+            throw new IllegalArgumentException("Select at least one company");
+        }
+        m.setCompany(companies.iterator().next());
+        m.setCompanies(new LinkedHashSet<>(companies));
+        m.setManufacturerId(r.manufacturerId()); m.setMachineTypeId(r.machineTypeId());
         m.setModelNumber(number); m.setModelName(r.modelName().trim()); m.setDescription(optional(r.description()));
         if (create) { m.setIsActive(r.isActive() == null || r.isActive()); m.setCreatedAt(LocalDateTime.now()); m.setCreatedBy(r.createdBy()); }
         else if (r.isActive() != null) m.setIsActive(r.isActive());
     }
     private MachineModel findWithReferences(Long id) { return repository.findByIdWithReferences(id).orElseThrow(() ->
             new EntityNotFoundException("Machine model " + id + " was not found")); }
-    private MachineModelResponse response(MachineModel m) { return new MachineModelResponse(m.getModelId(), m.getCompany(),
+    private MachineModelResponse response(MachineModel m) { return new MachineModelResponse(m.getModelId(), m.getCompany(), companies(m),
             m.getManufacturerId(), m.getManufacturer().getManufacturerName(), m.getMachineTypeId(),
             m.getMachineType().getMachineTypeName(), m.getModelNumber(), m.getModelName(), m.getDescription(),
             m.getIsActive(), m.getCreatedAt(), m.getCreatedBy()); }
     private MachineModelResponse response(MachineModel m, Manufacturer manufacturer, MachineType machineType) {
-        return new MachineModelResponse(m.getModelId(), m.getCompany(), m.getManufacturerId(),
+        return new MachineModelResponse(m.getModelId(), m.getCompany(), companies(m), m.getManufacturerId(),
                 manufacturer.getManufacturerName(), m.getMachineTypeId(), machineType.getMachineTypeName(),
                 m.getModelNumber(), m.getModelName(), m.getDescription(), m.getIsActive(),
                 m.getCreatedAt(), m.getCreatedBy());
     }
     private String code(String value) { return value.trim().toUpperCase(Locale.ROOT); }
     private String optional(String value) { return value == null || value.isBlank() ? null : value.trim(); }
+    private Set<com.gestetner.servvista.Models.Enums.Organization.Company> companies(MachineModel model) {
+        return model.getCompanies() == null || model.getCompanies().isEmpty()
+                ? Set.of(model.getCompany()) : new LinkedHashSet<>(model.getCompanies());
+    }
     private IllegalStateException conflict(Exception e) { return new IllegalStateException(
             "Machine model could not be saved because a unique or referenced value is invalid", e); }
     private record ReferenceData(Manufacturer manufacturer, MachineType machineType) {}

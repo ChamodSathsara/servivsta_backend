@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -20,6 +22,11 @@ public class MachineModel {
     @Enumerated(EnumType.STRING)
     @Column(name = "company", nullable = false, length = 20)
     private Company company;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "machine_model_company", joinColumns = @JoinColumn(name = "model_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "company", nullable = false, length = 20)
+    private Set<Company> companies = new LinkedHashSet<>();
     @Column(name = "manufacturer_id", nullable = false)
     private Long manufacturerId;
     @Column(name = "machine_type_id", nullable = false)

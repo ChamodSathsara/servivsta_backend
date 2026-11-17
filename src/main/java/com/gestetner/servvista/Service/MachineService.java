@@ -432,7 +432,7 @@ public class MachineService {
         MachineModel model = machineModelRepository.findById(machine.modelId())
                 .orElseThrow(() -> notFound("Machine model", machine.modelId()));
 
-        if (model.getCompany() != machine.company()) {
+        if (!modelSupportsCompany(model, machine.company())) {
             throw new IllegalArgumentException(
                     "Machine company must match the selected machine model company");
         }
@@ -444,6 +444,11 @@ public class MachineService {
         validateOptional(machine.salesmanId(), salesmanRepository::existsById, "Salesman");
 
         return model;
+    }
+
+    private boolean modelSupportsCompany(MachineModel model, com.gestetner.servvista.Models.Enums.Organization.Company company) {
+        return model.getCompanies() == null || model.getCompanies().isEmpty()
+                ? model.getCompany() == company : model.getCompanies().contains(company);
     }
 
     private void validateCreateUniqueValues(MachineRequest request) {

@@ -214,7 +214,7 @@ public class NewSaleService {
 
         MachineModel model = modelRepository.findById(machine.modelId())
                 .orElseThrow(() -> notFound("Machine model", machine.modelId()));
-        if (model.getCompany() != machine.company()) {
+        if (!modelSupportsCompany(model, machine.company())) {
             throw new IllegalArgumentException(
                     "Machine company must match the selected machine model company");
         }
@@ -244,6 +244,11 @@ public class NewSaleService {
         if (request.warranty().endDate().isBefore(request.warranty().startDate())) {
             throw new IllegalArgumentException("Warranty end date cannot be before its start date");
         }
+    }
+
+    private boolean modelSupportsCompany(MachineModel model, com.gestetner.servvista.Models.Enums.Organization.Company company) {
+        return model.getCompanies() == null || model.getCompanies().isEmpty()
+                ? model.getCompany() == company : model.getCompanies().contains(company);
     }
 
     private CustomerSite createCustomerSite(NewSaleRequest request, LocalDateTime now) {
