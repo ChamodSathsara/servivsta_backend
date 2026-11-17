@@ -30,6 +30,7 @@ import com.gestetner.servvista.Repositories.machines.MachineModelRepository;
 import com.gestetner.servvista.Repositories.machines.MachineRepository;
 import com.gestetner.servvista.Repositories.sales.DealerRepository;
 import com.gestetner.servvista.Repositories.sales.RepRepository;
+import com.gestetner.servvista.Repositories.sales.NewSaleWorkflowRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -58,6 +59,7 @@ public class InstallationService {
     private final UserRepository userRepository;
     private final ServiceScheduleService serviceScheduleService;
     private final JobPartyDetailsService partyDetailsService;
+    private final NewSaleWorkflowRepository newSaleWorkflowRepository;
 
     public InstallationService(
             InstallationJobRepository jobRepository,
@@ -74,7 +76,8 @@ public class InstallationService {
             RepRepository repRepository,
             UserRepository userRepository,
             ServiceScheduleService serviceScheduleService,
-            JobPartyDetailsService partyDetailsService) {
+            JobPartyDetailsService partyDetailsService,
+            NewSaleWorkflowRepository newSaleWorkflowRepository) {
         this.jobRepository = jobRepository;
         this.submissionRepository = submissionRepository;
         this.historyRepository = historyRepository;
@@ -90,6 +93,7 @@ public class InstallationService {
         this.userRepository = userRepository;
         this.serviceScheduleService = serviceScheduleService;
         this.partyDetailsService = partyDetailsService;
+        this.newSaleWorkflowRepository = newSaleWorkflowRepository;
     }
 
     public InstallationJobResponse createJob(InstallationJobRequest request) {
@@ -541,6 +545,8 @@ public class InstallationService {
         return new InstallationJobResponse(
                 job.getInstallationJobId(),
                 job.getJobNumber(),
+                newSaleWorkflowRepository.findByInstallationJobId(job.getInstallationJobId())
+                        .map(workflow -> workflow.getMachineReferenceNumber()).orElse(null),
                 job.getCompany(),
                 job.getDivision(),
                 job.getCustomerId(),

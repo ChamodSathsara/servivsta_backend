@@ -13,6 +13,7 @@ import java.util.List;
 public record InstallationJobResponse(
         Long installationJobId,
         String jobNumber,
+        String machineReferenceNumber,
         Company company,
         Division division,
         Long customerId,
