@@ -12,6 +12,7 @@ import java.util.Optional;
 public interface TechnicianRepository extends JpaRepository<Technician, Long> {
     Optional<Technician> findByUserId(Long userId);
     Optional<Technician> findByTechCode(String techCode);
+    Optional<Technician> findByTechCodeIgnoreCase(String techCode);
 
     @Query("select technician from Technician technician join fetch technician.user order by technician.technicianId")
     List<Technician> findAllWithUser();

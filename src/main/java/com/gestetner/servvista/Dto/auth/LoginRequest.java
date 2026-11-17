@@ -1,12 +1,11 @@
 package com.gestetner.servvista.Dto.auth;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record LoginRequest(
-        @NotBlank(message = "Email is required")
-        @Email(message = "Email must be valid")
+        @NotBlank(message = "Email or technician code is required")
+        @Size(max = 150, message = "Login identifier must not exceed 150 characters")
         String email,
 
         @NotBlank(message = "Password is required")

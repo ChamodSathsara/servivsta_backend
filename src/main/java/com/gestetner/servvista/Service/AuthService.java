@@ -4,6 +4,7 @@ import com.gestetner.servvista.Dto.auth.LoginRequest;
 import com.gestetner.servvista.Dto.auth.LoginResponse;
 import com.gestetner.servvista.Dto.auth.RefreshTokenRequest;
 import com.gestetner.servvista.Models.entity.identity.User;
+import com.gestetner.servvista.Repositories.identity.TechnicianRepository;
 import com.gestetner.servvista.Repositories.identity.UserRepository;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,19 +16,22 @@ import java.util.Locale;
 @Service
 public class AuthService {
 
-    private static final String INVALID_CREDENTIALS = "Invalid email or password";
+    private static final String INVALID_CREDENTIALS = "Invalid email/technician code or password";
 
     private final UserRepository userRepository;
+    private final TechnicianRepository technicianRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
 
     public AuthService(
             UserRepository userRepository,
+            TechnicianRepository technicianRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             RefreshTokenService refreshTokenService) {
         this.userRepository = userRepository;
+        this.technicianRepository = technicianRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
@@ -35,9 +39,13 @@ public class AuthService {
 
     @Transactional
     public LoginResponse login(LoginRequest request, String ipAddress) {
-        String email = request.email().trim().toLowerCase(Locale.ROOT);
-        User user = userRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new BadCredentialsException(INVALID_CREDENTIALS));
+        String identifier = request.email().trim();
+        User user = identifier.contains("@")
+                ? userRepository.findByEmailIgnoreCase(identifier.toLowerCase(Locale.ROOT))
+                    .orElseThrow(() -> new BadCredentialsException(INVALID_CREDENTIALS))
+                : technicianRepository.findByTechCodeIgnoreCase(identifier)
+                    .map(technician -> technician.getUser())
+                    .orElseThrow(() -> new BadCredentialsException(INVALID_CREDENTIALS));
 
         if (!Boolean.TRUE.equals(user.getIsActive())
                 || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
