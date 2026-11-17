@@ -7,6 +7,9 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 @Getter
 @Setter
 @Entity
@@ -35,6 +38,17 @@ public class Technician {
     @Enumerated(EnumType.STRING)
     @Column(name = "division", nullable = false, length = 20)
     private Division division;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "technician_division",
+            joinColumns = @JoinColumn(name = "technician_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "division", nullable = false, length = 20)
+    private Set<Division> divisions = new LinkedHashSet<>();
+
+    @Column(name = "cities", length = 1000)
+    private String cities;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "area", nullable = false, length = 20)

@@ -4,6 +4,7 @@ import com.gestetner.servvista.Dto.identity.*;
 import com.gestetner.servvista.Mapper.UserMapper;
 import com.gestetner.servvista.Models.Enums.Identity.Role;
 import com.gestetner.servvista.Models.Enums.Organization.Company;
+import com.gestetner.servvista.Models.Enums.Organization.Division;
 import com.gestetner.servvista.Models.entity.identity.Coordinator;
 import com.gestetner.servvista.Models.entity.identity.Finance;
 import com.gestetner.servvista.Models.entity.identity.StoresUser;
@@ -75,12 +76,16 @@ public class StaffUserService {
             technician.setMobileNumber(user.getMobileNumber());
             technician.setEmail(user.getEmail());
             technician.setDivision(user.getDivision());
+            technician.setDivisions(new LinkedHashSet<>(validateTechnicianDivisions(
+                    request.division(), request.divisions())));
             technician.setArea(user.getArea());
+            technician.setCities(normalizeOptional(request.cities()));
             technician.setTechnicianRole(request.technicianRole());
             technician = technicianRepository.saveAndFlush(technician);
             return new TechnicianUserResponse(
                     userMapper.toResponse(user), technician.getTechnicianId(),
-                    technician.getTechCode(), technician.getTechnicianRole(), companies);
+                    technician.getTechCode(), technician.getTechnicianRole(), companies,
+                    getDivisions(technician), technician.getCities());
         } catch (DataIntegrityViolationException exception) {
             throw duplicateDetails(exception);
         }
@@ -177,7 +182,9 @@ public class StaffUserService {
                         technician.getTechnicianId(),
                         technician.getTechCode(),
                         technician.getTechnicianRole(),
-                        getCompanies(technician.getUserId())))
+                        getCompanies(technician.getUserId()),
+                        getDivisions(technician),
+                        technician.getCities()))
                 .toList();
     }
 
@@ -190,7 +197,8 @@ public class StaffUserService {
         return new TechnicianUserResponse(
                 userMapper.toResponse(user), technician.getTechnicianId(),
                 technician.getTechCode(), technician.getTechnicianRole(),
-                getCompanies(user.getUserId()));
+                getCompanies(user.getUserId()), getDivisions(technician),
+                technician.getCities());
     }
 
     @Transactional(readOnly = true)
@@ -296,13 +304,17 @@ public class StaffUserService {
             technician.setMobileNumber(user.getMobileNumber());
             technician.setEmail(user.getEmail());
             technician.setDivision(user.getDivision());
+            technician.setDivisions(new LinkedHashSet<>(validateTechnicianDivisions(
+                    request.division(), request.divisions())));
             technician.setArea(user.getArea());
+            technician.setCities(normalizeOptional(request.cities()));
             technician.setTechnicianRole(request.technicianRole());
             technicianRepository.saveAndFlush(technician);
             return new TechnicianUserResponse(
                     userMapper.toResponse(user), technician.getTechnicianId(),
                     technician.getTechCode(), technician.getTechnicianRole(),
-                    getCompanies(user.getUserId()));
+                    getCompanies(user.getUserId()), getDivisions(technician),
+                    technician.getCities());
         } catch (DataIntegrityViolationException exception) {
             throw duplicateDetails(exception);
         }
@@ -539,6 +551,29 @@ public class StaffUserService {
         return userCompanyRepository.findAllByUserIdOrderByUserCompanyId(userId).stream()
                 .map(UserCompany::getCompany)
                 .toList();
+    }
+
+    private List<Division> validateTechnicianDivisions(
+            Division primaryDivision, List<Division> divisions) {
+        if (divisions == null || divisions.isEmpty()) {
+            throw new IllegalArgumentException("At least one technician division must be supplied");
+        }
+        LinkedHashSet<Division> uniqueDivisions = new LinkedHashSet<>(divisions);
+        if (uniqueDivisions.contains(null) || uniqueDivisions.size() != divisions.size()) {
+            throw new IllegalArgumentException("Technician divisions must be unique and non-null");
+        }
+        if (!uniqueDivisions.contains(primaryDivision)) {
+            throw new IllegalArgumentException(
+                    "The primary division must be included in technician divisions");
+        }
+        return List.copyOf(uniqueDivisions);
+    }
+
+    private List<Division> getDivisions(Technician technician) {
+        if (technician.getDivisions() == null || technician.getDivisions().isEmpty()) {
+            return List.of(technician.getDivision());
+        }
+        return List.copyOf(technician.getDivisions());
     }
 
     private void updateUser(User user, UpdateUserAccountRequest request, Role role) {

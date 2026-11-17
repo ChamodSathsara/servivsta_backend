@@ -2,6 +2,7 @@ package com.gestetner.servvista.Dto.identity;
 
 import com.gestetner.servvista.Models.Enums.Identity.TechnicianRole;
 import com.gestetner.servvista.Models.Enums.Organization.Company;
+import com.gestetner.servvista.Models.Enums.Organization.Division;
 import java.util.List;
 
 public record TechnicianUserResponse(
@@ -9,6 +10,8 @@ public record TechnicianUserResponse(
         Long technicianId,
         String techCode,
         TechnicianRole technicianRole,
-        List<Company> companies
+        List<Company> companies,
+        List<Division> divisions,
+        String cities
 ) {
 }
