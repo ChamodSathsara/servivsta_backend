@@ -7,6 +7,7 @@ import com.gestetner.servvista.Dto.services.ServiceVisitStartRequest;
 import com.gestetner.servvista.Dto.services.ServiceVisitStartResponse;
 import com.gestetner.servvista.Models.Enums.Meters.MeterReadingSource;
 import com.gestetner.servvista.Models.Enums.Services.ServiceScheduleStatus;
+import com.gestetner.servvista.Models.Enums.Agreements.AgreementType;
 import com.gestetner.servvista.Models.entity.agreements.MachineAgreement;
 import com.gestetner.servvista.Models.entity.customers.CustomerSite;
 import com.gestetner.servvista.Models.entity.machines.Machine;
@@ -128,6 +129,57 @@ public class ServiceScheduleService {
         return scheduleRepository.findAllByAgreementIdWithDetails(agreement.getAgreementId())
                 .stream().map(this::response).toList();
     }
+
+    public ImportedScheduleResult generateForImportedAgreement(
+            Long agreementId, Long machineId, Long assignedTechnicianId, LocalDateTime createdAt) {
+        MachineAgreement agreement = agreementRepository.findById(agreementId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Machine agreement " + agreementId + " was not found"));
+        if (agreement.getAgreementType() == AgreementType.NS) {
+            return new ImportedScheduleResult(0, 0);
+        }
+        if (scheduleRepository.existsByAgreementId(agreementId)) {
+            throw new IllegalStateException(
+                    "Service schedules already exist for agreement " + agreementId);
+        }
+
+        LocalDate today = LocalDate.now();
+        int autoCompleted = 0;
+        List<ServiceSchedule> schedules = new ArrayList<>();
+        for (int year = 1; year <= agreement.getAgreementPeriodYears(); year++) {
+            for (int visit = 1; visit <= agreement.getVisitsPerYear(); visit++) {
+                long monthsFromStart = ((long) (year - 1) * 12L)
+                        + Math.round((12.0 * visit) / agreement.getVisitsPerYear());
+                LocalDate expectedDate = agreement.getAgreementStartDate().plusMonths(monthsFromStart);
+                if (expectedDate.isAfter(agreement.getAgreementEndDate())) {
+                    continue;
+                }
+
+                boolean past = expectedDate.isBefore(today);
+                ServiceSchedule schedule = new ServiceSchedule();
+                schedule.setAgreementId(agreementId);
+                schedule.setMachineId(machineId);
+                schedule.setAgreementYearNumber(year);
+                schedule.setVisitNumber(visit);
+                schedule.setExpectedVisitDate(expectedDate);
+                schedule.setScheduledDate(expectedDate);
+                schedule.setAssignedTechnicianId(assignedTechnicianId);
+                schedule.setStatus(past ? ServiceScheduleStatus.COMPLETED : ServiceScheduleStatus.SCHEDULED);
+                schedule.setCreatedAt(createdAt);
+                if (past) {
+                    schedule.setActualVisitDate(expectedDate);
+                    schedule.setCompletedAt(expectedDate.atTime(17, 15));
+                    schedule.setSolutionNote("system automatically change for complete");
+                    autoCompleted++;
+                }
+                schedules.add(schedule);
+            }
+        }
+        scheduleRepository.saveAllAndFlush(schedules);
+        return new ImportedScheduleResult(schedules.size(), autoCompleted);
+    }
+
+    public record ImportedScheduleResult(int generated, int autoCompleted) {}
 
     public List<ServiceScheduleResponse> getAll() {
         markDueVisits();

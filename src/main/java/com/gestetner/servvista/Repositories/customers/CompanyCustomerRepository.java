@@ -15,4 +15,6 @@ public interface CompanyCustomerRepository extends JpaRepository<CompanyCustomer
     List<CompanyCustomer> findAllByCustomerIdIn(Collection<Long> customerIds);
 
     void deleteAllByCustomerId(Long customerId);
+
+    boolean existsByCustomerIdAndCompany(Long customerId, com.gestetner.servvista.Models.Enums.Organization.Company company);
 }

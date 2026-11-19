@@ -18,4 +18,7 @@ public interface MachineModelRepository extends JpaRepository<MachineModel, Long
 
     @Query("select model from MachineModel model join fetch model.manufacturer join fetch model.machineType where model.modelId = :modelId")
     Optional<MachineModel> findByIdWithReferences(Long modelId);
+
+    List<MachineModel> findAllByModelNumberIgnoreCase(String modelNumber);
+
 }

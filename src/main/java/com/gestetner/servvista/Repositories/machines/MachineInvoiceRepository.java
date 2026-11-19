@@ -25,4 +25,6 @@ public interface MachineInvoiceRepository extends JpaRepository<MachineInvoice, 
 
     @Query("select invoice from MachineInvoice invoice join fetch invoice.customer where invoice.machineInvoiceId = :machineInvoiceId")
     Optional<MachineInvoice> findByIdWithCustomer(Long machineInvoiceId);
+
+    Optional<MachineInvoice> findByInvoiceNumberIgnoreCase(String invoiceNumber);
 }
