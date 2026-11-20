@@ -6,6 +6,7 @@ import com.gestetner.servvista.Dto.customers.UpdateCustomerRequest;
 import com.gestetner.servvista.Dto.customers.CustomerSalesmanAssignmentResponse;
 import com.gestetner.servvista.Mapper.CustomerMapper;
 import com.gestetner.servvista.Models.Enums.Organization.Company;
+import com.gestetner.servvista.Models.Enums.Customers.CustomerGrade;
 import com.gestetner.servvista.Models.entity.customers.CompanyCustomer;
 import com.gestetner.servvista.Models.entity.customers.Customer;
 import com.gestetner.servvista.Models.entity.sales.CustomerSalesmanAssignment;
@@ -17,6 +18,9 @@ import com.gestetner.servvista.Repositories.sales.SalesmanRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -102,6 +106,22 @@ public class CustomerService {
         List<Customer> customers = customerRepository.findAll(
                 Sort.by(Sort.Direction.ASC, "customerId"));
         return buildResponses(customers);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CustomerResponse> getPage(
+            String query,
+            boolean searchById,
+            Boolean active,
+            CustomerGrade grade,
+            Pageable pageable) {
+        String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
+        Page<Customer> customerPage = customerRepository.findPage(
+                normalizedQuery, searchById, active, grade, pageable);
+        return new PageImpl<>(
+                buildResponses(customerPage.getContent()),
+                pageable,
+                customerPage.getTotalElements());
     }
 
     public CustomerResponse update(Long customerId, UpdateCustomerRequest request) {

@@ -4,6 +4,7 @@ import com.gestetner.servvista.Dto.customers.CreateCustomerRequest;
 import com.gestetner.servvista.Dto.customers.CustomerResponse;
 import com.gestetner.servvista.Dto.customers.UpdateCustomerRequest;
 import com.gestetner.servvista.Service.CustomerService;
+import com.gestetner.servvista.Models.Enums.Customers.CustomerGrade;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -20,6 +21,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
@@ -58,6 +63,22 @@ public class CustomerController {
     })
     public ResponseEntity<List<CustomerResponse>> getAll() {
         return ResponseEntity.ok(customerService.getAll());
+    }
+
+    @GetMapping("/page")
+    @Operation(summary = "Get paginated customers with search and filters")
+    public ResponseEntity<Page<CustomerResponse>> getPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String query,
+            @RequestParam(defaultValue = "false") boolean searchById,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) CustomerGrade grade) {
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        return ResponseEntity.ok(customerService.getPage(
+                query, searchById, active, grade,
+                PageRequest.of(Math.max(page, 0), safeSize,
+                        Sort.by(Sort.Order.asc("customerId")))));
     }
 
     @PutMapping("/{customerId}")
