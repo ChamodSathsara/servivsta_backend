@@ -10,7 +10,9 @@ import java.time.LocalDateTime;
  * Generated from the NewServvista DBML schema (converted from C# / EF Core model).
  */
 @Entity
-@Table(name = "machine_invoice")
+@Table(name = "machine_invoice", uniqueConstraints = @UniqueConstraint(
+        name = "uk_machine_invoice_number_customer",
+        columnNames = {"invoice_number", "customer_id"}))
 public class MachineInvoice {
 
     @Id

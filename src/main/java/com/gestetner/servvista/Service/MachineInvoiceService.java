@@ -35,7 +35,7 @@ public class MachineInvoiceService {
     public MachineInvoiceResponse create(MachineInvoiceRequest request) {
         validateReferences(request);
         String invoiceNumber = normalizeCode(request.invoiceNumber());
-        ensureUniqueInvoiceNumber(invoiceNumber, null);
+        ensureUniqueInvoiceNumber(invoiceNumber, request.customerId(), null);
 
         try {
             MachineInvoice invoice = new MachineInvoice();
@@ -68,7 +68,7 @@ public class MachineInvoiceService {
         MachineInvoice invoice = find(machineInvoiceId);
         validateCustomer(request.customerId());
         String invoiceNumber = normalizeCode(request.invoiceNumber());
-        ensureUniqueInvoiceNumber(invoiceNumber, machineInvoiceId);
+        ensureUniqueInvoiceNumber(invoiceNumber, request.customerId(), machineInvoiceId);
 
         try {
             apply(invoice, request, invoiceNumber);
@@ -107,11 +107,13 @@ public class MachineInvoiceService {
         }
     }
 
-    private void ensureUniqueInvoiceNumber(String invoiceNumber, Long machineInvoiceId) {
+    private void ensureUniqueInvoiceNumber(
+            String invoiceNumber, Long customerId, Long machineInvoiceId) {
         boolean exists = machineInvoiceId == null
-                ? invoiceRepository.existsByInvoiceNumberIgnoreCase(invoiceNumber)
-                : invoiceRepository.existsByInvoiceNumberIgnoreCaseAndMachineInvoiceIdNot(
-                        invoiceNumber, machineInvoiceId);
+                ? invoiceRepository.existsByInvoiceNumberIgnoreCaseAndCustomerId(
+                        invoiceNumber, customerId)
+                : invoiceRepository.existsByInvoiceNumberIgnoreCaseAndCustomerIdAndMachineInvoiceIdNot(
+                        invoiceNumber, customerId, machineInvoiceId);
         if (exists) {
             throw new IllegalStateException(
                     "Machine invoice number '" + invoiceNumber + "' already exists");

@@ -306,7 +306,7 @@ public class MachineService {
             CustomerSite site = createSite(request.customerSite(), request.performedBy(), now);
             SiteContact contact = createContact(
                     request.siteContact(), site.getCustomerSiteId(), request.performedBy(), now);
-            MachineInvoice invoice = createInvoice(
+            MachineInvoice invoice = findOrCreateInvoice(
                     request.machineInvoice(), request.customerSite().customerId(), request.performedBy(), now);
             Machine machine = createMachine(
                     request.machine(), site.getCustomerSiteId(), invoice.getMachineInvoiceId(),
@@ -453,14 +453,10 @@ public class MachineService {
 
     private void validateCreateUniqueValues(MachineRequest request) {
         String serial = normalizeCode(request.machine().serialNumber());
-        String invoice = normalizeCode(request.machineInvoice().invoiceNumber());
         String siteName = request.customerSite().siteName().trim();
 
         if (machineRepository.existsBySerialNumberIgnoreCase(serial)) {
             throw duplicate("Machine serial number", serial);
-        }
-        if (machineInvoiceRepository.existsByInvoiceNumberIgnoreCase(invoice)) {
-            throw duplicate("Invoice number", invoice);
         }
         if (customerSiteRepository.existsByCustomerIdAndSiteNameIgnoreCase(
                 request.customerSite().customerId(), siteName)) {
@@ -482,8 +478,8 @@ public class MachineService {
         if (machineRepository.existsBySerialNumberIgnoreCaseAndMachineIdNot(serial, machineId)) {
             throw duplicate("Machine serial number", serial);
         }
-        if (machineInvoiceRepository.existsByInvoiceNumberIgnoreCaseAndMachineInvoiceIdNot(
-                invoiceNumber, invoice.getMachineInvoiceId())) {
+        if (machineInvoiceRepository.existsByInvoiceNumberIgnoreCaseAndCustomerIdAndMachineInvoiceIdNot(
+                invoiceNumber, request.customerSite().customerId(), invoice.getMachineInvoiceId())) {
             throw duplicate("Invoice number", invoiceNumber);
         }
         if (customerSiteRepository.existsByCustomerIdAndSiteNameIgnoreCaseAndCustomerSiteIdNot(
@@ -517,11 +513,18 @@ public class MachineService {
         return siteContactRepository.saveAndFlush(contact);
     }
 
-    private MachineInvoice createInvoice(
+    private MachineInvoice findOrCreateInvoice(
             MachineInvoiceData data,
             Long customerId,
             Long performedBy,
             LocalDateTime now) {
+        String invoiceNumber = normalizeCode(data.invoiceNumber());
+        MachineInvoice existing = machineInvoiceRepository
+                .findByInvoiceNumberIgnoreCaseAndCustomerId(invoiceNumber, customerId)
+                .orElse(null);
+        if (existing != null) {
+            return existing;
+        }
         MachineInvoice invoice = new MachineInvoice();
         applyInvoice(invoice, data, customerId);
         invoice.setCreatedBy(performedBy);

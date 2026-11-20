@@ -27,4 +27,12 @@ public interface MachineInvoiceRepository extends JpaRepository<MachineInvoice, 
     Optional<MachineInvoice> findByIdWithCustomer(Long machineInvoiceId);
 
     Optional<MachineInvoice> findByInvoiceNumberIgnoreCase(String invoiceNumber);
+
+    boolean existsByInvoiceNumberIgnoreCaseAndCustomerId(String invoiceNumber, Long customerId);
+
+    boolean existsByInvoiceNumberIgnoreCaseAndCustomerIdAndMachineInvoiceIdNot(
+            String invoiceNumber, Long customerId, Long machineInvoiceId);
+
+    Optional<MachineInvoice> findByInvoiceNumberIgnoreCaseAndCustomerId(
+            String invoiceNumber, Long customerId);
 }
