@@ -22,7 +22,7 @@ public class CustomerSite {
     private Long customerId;
     @Column(name = "site_name", nullable = false, length = 150)
     private String siteName;
-    @Column(name = "address_line_1", nullable = false, length = 150)
+    @Column(name = "address_line_1", length = 150)
     private String addressLine1;
     @Column(name = "address_line_2", length = 150)
     private String addressLine2;
