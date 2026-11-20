@@ -28,6 +28,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
@@ -58,6 +61,19 @@ public class MachineController {
     @Operation(summary = "Get all machines")
     public ResponseEntity<List<MachineResponse>> getAll() {
         return ResponseEntity.ok(machineService.getAll());
+    }
+
+    @GetMapping("/page")
+    @Operation(summary = "Get a paginated machine list with Q-number or serial-number search")
+    public ResponseEntity<Page<MachineResponse>> getPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String query) {
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        return ResponseEntity.ok(machineService.getPage(
+                query,
+                PageRequest.of(Math.max(page, 0), safeSize,
+                        Sort.by(Sort.Order.asc("machineId")))));
     }
 
     @GetMapping("/{machineId}")

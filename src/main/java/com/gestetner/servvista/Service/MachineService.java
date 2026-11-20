@@ -41,6 +41,8 @@ import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.time.LocalDate;
@@ -334,6 +336,13 @@ public class MachineService {
                 .stream()
                 .map(this::response)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<MachineResponse> getPage(String query, Pageable pageable) {
+        String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
+        return machineRepository.findPageWithDetails(normalizedQuery, pageable)
+                .map(this::response);
     }
 
     @Transactional(readOnly = true)

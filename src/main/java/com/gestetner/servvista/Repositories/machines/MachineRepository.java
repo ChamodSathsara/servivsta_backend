@@ -4,6 +4,8 @@ package com.gestetner.servvista.Repositories.machines;
 import com.gestetner.servvista.Models.entity.machines.Machine;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -34,6 +36,22 @@ public interface MachineRepository extends JpaRepository<Machine, Long> {
             order by machine.machineId
             """)
     List<Machine> findAllWithDetails();
+
+    @Query(value = """
+            select machine from Machine machine
+            left join fetch machine.model
+            left join fetch machine.machineInvoice
+            left join fetch machine.currentCustomerSite
+            where (:query is null
+                   or lower(machine.machineReferenceNumber) like lower(concat('%', :query, '%'))
+                   or lower(machine.serialNumber) like lower(concat('%', :query, '%')))
+            """, countQuery = """
+            select count(machine) from Machine machine
+            where (:query is null
+                   or lower(machine.machineReferenceNumber) like lower(concat('%', :query, '%'))
+                   or lower(machine.serialNumber) like lower(concat('%', :query, '%')))
+            """)
+    Page<Machine> findPageWithDetails(String query, Pageable pageable);
 
     @Query("""
             select machine from Machine machine
