@@ -3,6 +3,7 @@ package com.gestetner.servvista.Repositories.machines;
 import com.gestetner.servvista.Models.entity.machines.MachineType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import java.util.Optional;
 
 /**
  * Spring Data JPA repository for {@link MachineType}.
@@ -11,4 +12,5 @@ import org.springframework.stereotype.Repository;
 public interface MachineTypeRepository extends JpaRepository<MachineType, Long> {
     boolean existsByMachineTypeNameIgnoreCase(String machineTypeName);
     boolean existsByMachineTypeNameIgnoreCaseAndMachineTypeIdNot(String machineTypeName, Long machineTypeId);
+    Optional<MachineType> findFirstByMachineTypeNameIgnoreCase(String machineTypeName);
 }

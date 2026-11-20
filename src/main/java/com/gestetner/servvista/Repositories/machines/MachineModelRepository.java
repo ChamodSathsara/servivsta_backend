@@ -21,4 +21,6 @@ public interface MachineModelRepository extends JpaRepository<MachineModel, Long
 
     List<MachineModel> findAllByModelNumberIgnoreCase(String modelNumber);
 
+    List<MachineModel> findAllByModelNameIgnoreCase(String modelName);
+
 }
