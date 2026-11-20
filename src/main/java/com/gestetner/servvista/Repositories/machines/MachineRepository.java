@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 
 /**
@@ -52,6 +53,25 @@ public interface MachineRepository extends JpaRepository<Machine, Long> {
                    or lower(machine.serialNumber) like lower(concat('%', :query, '%')))
             """)
     Page<Machine> findPageWithDetails(String query, Pageable pageable);
+
+    @Query("""
+            select machine from Machine machine
+            left join fetch machine.model
+            left join fetch machine.machineInvoice
+            join fetch machine.currentCustomerSite site
+            where site.customerId = :customerId
+            order by machine.machineReferenceNumber
+            """)
+    List<Machine> findAllByCustomerIdWithDetails(Long customerId);
+
+    @Query("""
+            select site.customerId, count(machine)
+            from Machine machine
+            join machine.currentCustomerSite site
+            where site.customerId in :customerIds
+            group by site.customerId
+            """)
+    List<Object[]> countByCustomerIds(Collection<Long> customerIds);
 
     @Query("""
             select machine from Machine machine

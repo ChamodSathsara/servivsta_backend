@@ -33,6 +33,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/machines")
@@ -74,6 +75,19 @@ public class MachineController {
                 query,
                 PageRequest.of(Math.max(page, 0), safeSize,
                         Sort.by(Sort.Order.asc("machineId")))));
+    }
+
+    @GetMapping("/customer/{customerId}")
+    @Operation(summary = "Get all machines assigned to a customer")
+    public ResponseEntity<List<MachineResponse>> getByCustomer(@PathVariable Long customerId) {
+        return ResponseEntity.ok(machineService.getByCustomer(customerId));
+    }
+
+    @GetMapping("/customer-counts")
+    @Operation(summary = "Get machine counts for customers")
+    public ResponseEntity<Map<Long, Long>> getCustomerMachineCounts(
+            @RequestParam List<Long> customerIds) {
+        return ResponseEntity.ok(machineService.countByCustomers(customerIds));
     }
 
     @GetMapping("/{machineId}")

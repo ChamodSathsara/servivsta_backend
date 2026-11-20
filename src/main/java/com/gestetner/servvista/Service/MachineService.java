@@ -50,6 +50,9 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.Collection;
 import java.util.Locale;
 
 @Service
@@ -343,6 +346,25 @@ public class MachineService {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
         return machineRepository.findPageWithDetails(normalizedQuery, pageable)
                 .map(this::response);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MachineResponse> getByCustomer(Long customerId) {
+        return machineRepository.findAllByCustomerIdWithDetails(customerId)
+                .stream()
+                .map(this::response)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Map<Long, Long> countByCustomers(Collection<Long> customerIds) {
+        Map<Long, Long> counts = new LinkedHashMap<>();
+        customerIds.forEach(customerId -> counts.put(customerId, 0L));
+        if (!customerIds.isEmpty()) {
+            machineRepository.countByCustomerIds(customerIds)
+                    .forEach(row -> counts.put((Long) row[0], (Long) row[1]));
+        }
+        return counts;
     }
 
     @Transactional(readOnly = true)
