@@ -16,6 +16,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import com.gestetner.servvista.Models.Enums.Services.ServiceScheduleStatus;
 
 import java.util.List;
 
@@ -33,8 +38,16 @@ public class ServiceScheduleController {
 
     @GetMapping
     @Operation(summary = "Get all service schedules")
-    public ResponseEntity<List<ServiceScheduleResponse>> getAll() {
-        return ResponseEntity.ok(serviceScheduleService.getAll());
+    public ResponseEntity<Page<ServiceScheduleResponse>> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) ServiceScheduleStatus status) {
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        return ResponseEntity.ok(serviceScheduleService.getPage(
+                search, status, PageRequest.of(Math.max(page, 0), safeSize,
+                        Sort.by(Sort.Order.asc("expectedVisitDate"),
+                                Sort.Order.asc("serviceScheduleId")))));
     }
 
     @GetMapping("/{scheduleId}")

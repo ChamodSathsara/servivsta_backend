@@ -26,6 +26,8 @@ import com.gestetner.servvista.Repositories.services.SolutionTypeRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -184,6 +186,14 @@ public class ServiceScheduleService {
     public List<ServiceScheduleResponse> getAll() {
         markDueVisits();
         return scheduleRepository.findAllWithDetails().stream().map(this::response).toList();
+    }
+
+    public Page<ServiceScheduleResponse> getPage(
+            String search, ServiceScheduleStatus status, Pageable pageable) {
+        markDueVisits();
+        String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
+        return scheduleRepository.findPageWithDetails(normalizedSearch, status, pageable)
+                .map(this::response);
     }
 
     public ServiceScheduleResponse getById(Long scheduleId) {

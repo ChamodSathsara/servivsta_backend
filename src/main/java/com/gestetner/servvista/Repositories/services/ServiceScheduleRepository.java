@@ -53,6 +53,25 @@ public interface ServiceScheduleRepository extends JpaRepository<ServiceSchedule
             """)
     List<ServiceSchedule> findAllWithDetails();
 
+    @Query(value = """
+            select schedule from ServiceSchedule schedule
+            join fetch schedule.agreement
+            join fetch schedule.machine machine
+            left join fetch machine.currentCustomerSite
+            left join fetch schedule.assignedTechnician
+            where (:search is null
+                   or lower(machine.machineReferenceNumber) like lower(concat('%', :search, '%')))
+              and (:status is null or schedule.status = :status)
+            """, countQuery = """
+            select count(schedule) from ServiceSchedule schedule
+            join schedule.machine machine
+            where (:search is null
+                   or lower(machine.machineReferenceNumber) like lower(concat('%', :search, '%')))
+              and (:status is null or schedule.status = :status)
+            """)
+    Page<ServiceSchedule> findPageWithDetails(
+            String search, ServiceScheduleStatus status, Pageable pageable);
+
     @Query("""
             select schedule from ServiceSchedule schedule
             join fetch schedule.agreement
